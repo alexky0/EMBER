@@ -18,6 +18,13 @@ int main() {
         return -1;
     }
 
+    if (!emMakeContext())
+    {
+        printf("Failed to create context for EMBER window");
+        emTerminate();
+        return -1;
+    }
+
     while (!emShouldClose())
     {
         emPollEvents();

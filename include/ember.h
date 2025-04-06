@@ -73,6 +73,16 @@ EMBERWindow emCreateWindow(const char* title, int width, int height);
   */
 void emPollEvents();
 
+/**
+ * @brief Gives the current EMBER window context for OpenGL to render to.
+ * 
+ * This function uses the device context and OpenGL render context to
+ * give the current window context for OpenGL to render to.
+ *
+ * @return 1 on success, 0 on fail.
+*/
+int emMakeContext();
+
 #ifdef __cplusplus
 }
 #endif

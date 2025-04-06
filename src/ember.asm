@@ -10,6 +10,11 @@ bits 32
 %define SW_NORMAL 1
 %define WM_CLOSE 0x0010
 %define PM_REMOVE 0x0001
+%define PFD_DRAW_TO_WINDOW 0x00000004
+%define PFD_SUPPORT_OPENGL 0x00000020
+%define PFD_DOUBLEBUFFER 0x00000001
+%define PFD_GENERIC_ACCELERATED 0x00001000
+%define PFD_TYPE_RGBA 0
 
 section .data
 ClassName DB "EmberClass", 0
@@ -37,6 +42,11 @@ extern _PostQuitMessage@4
 extern _TranslateMessage@4
 extern _DispatchMessageA@4
 extern _PeekMessageA@20
+extern _wglMakeCurrent@8
+extern _GetDC@4
+extern _wglCreateContext@4
+extern _ChoosePixelFormat@8
+extern _SetPixelFormat@12
 
 global _emInit
 global _emTerminate
@@ -44,6 +54,7 @@ global _emCreateWindow
 global _emDestroyWindow
 global _emShouldClose
 global _emPollEvents
+global _emMakeContext
 
 _emInit:
     PUSH EBP
@@ -73,13 +84,16 @@ _emInit:
     MOV DWORD [EBX + 4 * 11], NULL
     PUSH EBX
     CALL _RegisterClassExA@4
+
     TEST EAX, EAX
     JZ .init_fail
+
     ADD ESP, 48
+
+    MOV EAX, 1
 
     MOV ESP, EBP
     POP EBP
-    MOV EAX, 1
     RET
 .init_fail:
     ADD ESP,  48
@@ -88,9 +102,10 @@ _emInit:
     PUSH ClassName 
     CALL _UnregisterClassA@8
 
+    MOV EAX, 0
+
     MOV ESP, EBP
     POP EBP
-    MOV EAX, 0
     RET
 
 _emTerminate:
@@ -134,6 +149,51 @@ _emCreateWindow:
 
     PUSH DWORD [hwnd]
     CALL _UpdateWindow@4
+
+    PUSH DWORD [hwnd]
+    CALL _GetDC@4
+    MOV [hdc], EAX
+
+    SUB ESP, 40
+    MOV EBX, ESP
+    MOV WORD  [EBX + 0],  40
+    MOV WORD  [EBX + 2],  1
+    MOV DWORD [EBX + 4],  PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_GENERIC_ACCELERATED | PFD_SUPPORT_OPENGL
+    MOV BYTE  [EBX + 8],  PFD_TYPE_RGBA
+    MOV BYTE  [EBX + 9],  32
+    MOV BYTE  [EBX + 10], 8
+    MOV BYTE  [EBX + 11], 0
+    MOV BYTE  [EBX + 12], 8
+    MOV BYTE  [EBX + 13], 8
+    MOV BYTE  [EBX + 14], 8
+    MOV BYTE  [EBX + 15], 16
+    MOV BYTE  [EBX + 16], 8
+    MOV BYTE  [EBX + 17], 24
+    MOV BYTE  [EBX + 18], 0
+    MOV BYTE  [EBX + 19], 0
+    MOV BYTE  [EBX + 20], 0
+    MOV BYTE  [EBX + 21], 0
+    MOV BYTE  [EBX + 22], 0
+    MOV BYTE  [EBX + 23], 24
+    MOV BYTE  [EBX + 25], 8
+    MOV BYTE  [EBX + 25], 0
+    MOV BYTE  [EBX + 26], 0
+    MOV BYTE  [EBX + 27], 0
+    MOV DWORD [EBX + 28], 0
+    MOV DWORD [EBX + 32], 0
+    MOV DWORD [EBX + 36], 0
+    PUSH EBX
+    PUSH DWORD [hdc]
+    CALL _ChoosePixelFormat@8
+    PUSH EBX
+    PUSH EAX
+    PUSH DWORD [hdc]
+    CALL _SetPixelFormat@12
+    ADD ESP, 40
+
+    PUSH DWORD [hdc]
+    CALL _wglCreateContext@4
+    MOV [hglrc], EAX
 
     MOV ESP, EBP
     POP EBP
@@ -196,6 +256,30 @@ _emPollEvents:
     MOV ESP, EBP
     POP EBP
     RET
+
+_emMakeContext:
+    PUSH EBP
+    MOV EBP, ESP
+
+    PUSH DWORD [hglrc]
+    PUSH DWORD [hdc]
+    CALL _wglMakeCurrent@8
+
+    TEST EAX, EAX
+    JZ .context_fail
+
+    MOV EAX, 1
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+.context_fail:
+    MOV EAX, 0
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 
 _WndProc:
     PUSH EBP
