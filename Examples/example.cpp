@@ -18,6 +18,11 @@ int main() {
         return -1;
     }
 
+    while (!emShouldClose())
+    {
+        emPollEvents();
+    }
+
     emTerminate();
 
     return 0;

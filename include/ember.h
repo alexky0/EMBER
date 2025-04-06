@@ -49,6 +49,29 @@ void emTerminate();
  */
 EMBERWindow emCreateWindow(const char* title, int width, int height);
 
+/**
+ * @brief Checks if the user has requested to close the specified window.
+ *
+ * This function checks the internal state of the EMBER window to see
+ * if a close event (e.g., clicking the close button) has been processed.
+ *
+ * @return 1 if the window should close, 0 otherwise.
+ *
+ * @note This function typically relies on the event polling mechanism
+ * provided by emPollEvents().
+ */
+ int emShouldClose();
+
+ /**
+  * @brief Polls for and processes pending window events.
+  *
+  * This function checks the Windows message queue for events related to
+  * EMBER-created windows (e.g., keyboard input, mouse input, window resizing,
+  * close requests). It dispatches these events to the appropriate window
+  * procedures for handling. This function should be called regularly in
+  * the application's main loop to ensure responsiveness.
+  */
+void emPollEvents();
 
 #ifdef __cplusplus
 }

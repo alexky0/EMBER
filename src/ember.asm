@@ -12,14 +12,14 @@ bits 32
 %define PM_REMOVE 0x0001
 
 section .data
-ClassName db "EmberClass", 0
+ClassName DB "EmberClass", 0
 
 section .bss
-hInstance resb 4
-hwnd resb 4
-hdc resb 4
-hglrc resb 4
-quit resb 4
+hInstance RESB 4
+hwnd RESB 4
+hdc RESB 4
+hglrc RESB 4
+quit RESB 4
 
 section .text
 
@@ -34,12 +34,16 @@ extern _GetDC@4
 extern _DestroyWindow@4
 extern _DefWindowProcA@16
 extern _PostQuitMessage@4
+extern _TranslateMessage@4
+extern _DispatchMessageA@4
+extern _PeekMessageA@20
 
 global _emInit
 global _emTerminate
 global _emCreateWindow
 global _emDestroyWindow
-
+global _emShouldClose
+global _emPollEvents
 
 _emInit:
     PUSH EBP
@@ -70,14 +74,14 @@ _emInit:
     PUSH EBX
     CALL _RegisterClassExA@4
     TEST EAX, EAX
-    JZ .initFail
+    JZ .init_fail
     ADD ESP, 48
 
     MOV ESP, EBP
     POP EBP
     MOV EAX, 1
     RET
-.initFail:
+.init_fail:
     ADD ESP,  48
 
     PUSH DWORD [hInstance]
@@ -147,12 +151,58 @@ _emDestroyWindow:
     POP EBP
     RET
 
+_emShouldClose:
+    PUSH EBP
+    MOV EBP, ESP
+
+    CMP DWORD [quit], 1
+    JZ .quit
+
+    MOV ESP, EBP
+    POP EBP
+    MOV EAX, 0
+    RET
+.quit:
+    MOV ESP, EBP
+    POP EBP
+    MOV EAX, 1
+    RET
+
+_emPollEvents:
+    PUSH EBP
+    MOV EBP, ESP
+
+    SUB ESP, 28
+    MOV EBX, ESP
+.message_loop:
+    PUSH PM_REMOVE
+    PUSH 0
+    PUSH 0
+    PUSH NULL
+    PUSH EBX
+    CALL _PeekMessageA@20
+    
+    TEST EAX, EAX
+    JZ .no_message
+    
+    PUSH EBX
+    CALL _TranslateMessage@4
+    
+    PUSH EBX
+    CALL _DispatchMessageA@4
+    
+    JMP .message_loop
+.no_message:
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
 
     CMP DWORD [EBP + 12], WM_CLOSE
-    JE .handleClose
+    JE .handle_close
 
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
@@ -163,10 +213,11 @@ _WndProc:
     MOV ESP, EBP
     POP EBP
     RET
-
-.handleClose:
+.handle_close:
     PUSH 0
     CALL _PostQuitMessage@4
+
+    MOV DWORD [quit], 1
     XOR EAX, EAX
 
     MOV ESP, EBP
