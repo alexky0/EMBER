@@ -12,12 +12,24 @@ extern "C" {
  * created by EMBER. You should treat instances of this struct as
  * opaque handles and not directly access its members from C/C++.
  */
-typedef struct EMBERWindow_t {
-    void* hwnd;    /* Window handle */
-    void* hdc;     /* Device context handle */
-    void* hglrc;   /* OpenGL rendering context handle */
-    int quit;      /* Flag indicating whether the window should close */
+ typedef struct EMBERWindow_t {
+    void* hwnd;          /* Window handle */
+    void* hdc;           /* Device context handle */
+    void* hglrc;         /* OpenGL rendering context handle */
+    int quit;            /* Flag indicating whether the window should close */
+    int majorVersion;    /* OpenGL context major version */
+    int minorVersion;    /* OpenGL context minor version */
+    int profileMask;     /* OpenGL context profile mask */
 } EMBERWindow;
+
+/* OpenGL Context Profile Constants */
+#define EMBER_OPENGL_CORE_PROFILE          0x00000001
+#define EMBER_OPENGL_COMPATIBILITY_PROFILE 0x00000002
+
+/* Window Hint Types */
+#define EMBER_CONTEXT_MAJOR_VERSION        1
+#define EMBER_CONTEXT_MINOR_VERSION        2
+#define EMBER_CONTEXT_PROFILE              3
 
 /**
  * @brief Initializes the EMBER library.
@@ -38,6 +50,25 @@ int emInit();
  * @sa emInit()
  */
 void emTerminate();
+
+/**
+ * @brief Sets hints for the next window to be created.
+ *
+ * This function allows setting various parameters for OpenGL context
+ * creation before calling emCreateWindow(). The hint values set will
+ * apply to the next window created.
+ *
+ * @param window Pointer to the EMBERWindow structure.
+ * @param hint The hint to set (one of the EMBER_CONTEXT_* constants).
+ * @param value The value to set for the specified hint.
+ *
+ * Valid hints:
+ * - EMBER_CONTEXT_MAJOR_VERSION: Major version of OpenGL context
+ * - EMBER_CONTEXT_MINOR_VERSION: Minor version of OpenGL context
+ * - EMBER_CONTEXT_PROFILE: Profile mask (EMBER_OPENGL_CORE_PROFILE or 
+ *                          EMBER_OPENGL_COMPATIBILITY_PROFILE)
+ */
+ void emWindowHint(EMBERWindow* window, int hint, int value);
 
 /**
  * @brief Creates a new window for OpenGL rendering.

@@ -16,9 +16,16 @@ bits 32
 %define PFD_GENERIC_ACCELERATED 0x00001000
 %define PFD_TYPE_RGBA 0
 %define GWLP_USERDATA (-21)
+%define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
+%define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
+%define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
+%define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
+%define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
+
 
 section .data
 ClassName DB "EmberClass", 0
+wglCreateContextAttribsARB_name DB "wglCreateContextAttribsARB", 0
 
 section .bss
 hInstance RESB 4
@@ -28,6 +35,9 @@ struc EMBERWindow
     .hdc RESB 4
     .hglrc RESB 4
     .quit RESB 4
+    .majorVersion RESB 4
+    .minorVersion RESB 4
+    .profileMask RESB 4
 endstruc
 
 section .text
@@ -56,9 +66,14 @@ extern _GetWindowLongA@8
 extern _ReleaseDC@8
 extern _wglDeleteContext@4
 extern _SwapBuffers@4
+extern _wglGetProcAddress@4
+
+extern _malloc
+extern _free
 
 global _emInit
 global _emTerminate
+global _emWindowHint
 global _emCreateWindow
 global _emDestroyWindow
 global _emShouldClose
@@ -128,17 +143,54 @@ _emTerminate:
     POP EBP
     RET
 
+_emWindowHint:
+    PUSH EBP
+    MOV EBP, ESP
+    
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+    MOV EDX, [EBP + 16]
+    
+    CMP ECX, 1
+    JE .set_major
+    CMP ECX, 2
+    JE .set_minor
+    CMP ECX, 3
+    JE .set_profile
+    JMP .hint_end
+.set_major:
+    MOV [EBX + EMBERWindow.majorVersion], EDX
+    JMP .hint_end
+.set_minor:
+    MOV [EBX + EMBERWindow.minorVersion], EDX
+    JMP .hint_end
+.set_profile:
+    MOV [EBX + EMBERWindow.profileMask], EDX
+.hint_end:
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
     
-    SUB ESP, 16
-    MOV EDI, ESP
+    PUSH 28
+    CALL _malloc
+    ADD ESP, 4
+    
+    TEST EAX, EAX
+    JZ .create_fail
+    
+    MOV EDI, EAX
     
     MOV DWORD [EDI + EMBERWindow.hwnd], 0
     MOV DWORD [EDI + EMBERWindow.hdc], 0
     MOV DWORD [EDI + EMBERWindow.hglrc], 0
     MOV DWORD [EDI + EMBERWindow.quit], 0
+    MOV DWORD [EDI + EMBERWindow.majorVersion], 1
+    MOV DWORD [EDI + EMBERWindow.minorVersion], 0
+    MOV DWORD [EDI + EMBERWindow.profileMask], WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB
     
     PUSH NULL
     PUSH DWORD [hInstance]
@@ -221,21 +273,81 @@ _emCreateWindow:
     
     PUSH DWORD [EDI + EMBERWindow.hdc]
     CALL _wglCreateContext@4
-    MOV [EDI + EMBERWindow.hglrc], EAX
+    MOV ECX, EAX
+    TEST ECX, ECX
+    JZ .create_fail
+
+    PUSH ECX
+    PUSH DWORD [EDI + EMBERWindow.hdc]
+    CALL _wglMakeCurrent@8
     TEST EAX, EAX
     JZ .create_fail
+
+    PUSH wglCreateContextAttribsARB_name
+    CALL _wglGetProcAddress@4
+    MOV ESI, EAX
+    TEST ESI, ESI
+    JZ .use_legacy_context
+
+    SUB ESP, 28
+    MOV EBX, ESP
+    MOV DWORD [EBX + 0], WGL_CONTEXT_MAJOR_VERSION_ARB
+    MOV EAX, [EDI + EMBERWindow.majorVersion]
+    MOV DWORD [EBX + 4], EAX
+    MOV DWORD [EBX + 8], WGL_CONTEXT_MINOR_VERSION_ARB
+    MOV EAX, [EDI + EMBERWindow.minorVersion]
+    MOV DWORD [EBX + 12], EAX
+    MOV DWORD [EBX + 16], WGL_CONTEXT_PROFILE_MASK_ARB
+    MOV EAX, [EDI + EMBERWindow.profileMask]
+    MOV DWORD [EBX + 20], EAX
+    MOV DWORD [EBX + 24], 0
     
-    MOV EAX, EDI
+    PUSH EBX
+    PUSH 0
+    PUSH DWORD [EDI + EMBERWindow.hdc]
+    CALL ESI
+    MOV EBX, EAX  ; Save the result in EBX
+    
+    ; Cleanup temp context
+    PUSH 0
+    PUSH 0
+    CALL _wglMakeCurrent@8
+    
+    PUSH ECX      ; Delete temp context
+    CALL _wglDeleteContext@4
+    
+    ADD ESP, 28   ; Clean up attributes array
+    
+    TEST EBX, EBX ; Check if new context creation succeeded
+    JZ .create_fail
+    
+    MOV [EDI + EMBERWindow.hglrc], EBX
+    
+    MOV EAX, EDI  ; Return the window pointer
+    MOV ESP, EBP
+    POP EBP
+    RET
+.use_legacy_context:
+    MOV [EDI + EMBERWindow.hglrc], ECX
+    
+    MOV EAX, EDI  ; Return the window pointer
     MOV ESP, EBP
     POP EBP
     RET
 .create_fail:
-    ADD ESP, 40
-
+    ; We need to ensure this properly cleans up
+    CMP DWORD [EDI + EMBERWindow.hwnd], 0
+    JZ .skip_destroy
+    
     PUSH DWORD [EDI + EMBERWindow.hwnd]
     CALL _DestroyWindow@4
+    
+.skip_destroy:
+    PUSH EDI
+    CALL _free
+    ADD ESP, 4
 
-    XOR EAX, EAX
+    XOR EAX, EAX  ; Return NULL on failure
     MOV ESP, EBP
     POP EBP
     RET
@@ -255,6 +367,10 @@ _emDestroyWindow:
 
     PUSH DWORD [EBX + EMBERWindow.hwnd]
     CALL _DestroyWindow@4
+    
+    PUSH EBX
+    CALL _free
+    ADD ESP, 4
 
     MOV ESP, EBP
     POP EBP
@@ -350,14 +466,29 @@ _WndProc:
     MOV EBP, ESP
     
     PUSH DWORD [EBP + 8]
+    CALL _GetDC@4
+    TEST EAX, EAX
+    JZ .default_proc
+    
     PUSH GWLP_USERDATA
+    PUSH DWORD [EBP + 8]
     CALL _GetWindowLongA@8
     MOV EBX, EAX
     TEST EBX, EBX
     JZ .default_proc
     
     CMP DWORD [EBP + 12], WM_CLOSE
-    JE .handle_close
+    JNE .default_proc
+    
+    MOV DWORD [EBX + EMBERWindow.quit], 1
+    PUSH 0
+    CALL _PostQuitMessage@4
+
+    PUSH DWORD [EBP + 8]
+    CALL _DestroyWindow@4
+    
+    XOR EAX, EAX
+    JMP .wndproc_end
     
 .default_proc:
     PUSH DWORD [EBP + 20]
@@ -366,17 +497,7 @@ _WndProc:
     PUSH DWORD [EBP + 8]
     CALL _DefWindowProcA@16
     
-    MOV ESP, EBP
-    POP EBP
-    RET
-    
-.handle_close:
-    PUSH 0
-    CALL _PostQuitMessage@4
-    
-    MOV DWORD [EBX + EMBERWindow.quit], 1
-    XOR EAX, EAX
-    
+.wndproc_end:
     MOV ESP, EBP
     POP EBP
     RET
