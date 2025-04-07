@@ -14,19 +14,22 @@ int main() {
     if (!window)
     {
         printf("Failed to create EMBER window");
+        emDestroyWindow(window);
         emTerminate();
         return -1;
     }
-
+ 
     if (!emMakeContext(window))
     {
         printf("Failed to create context for EMBER window");
+        emDestroyWindow(window);
         emTerminate();
         return -1;
     }
 
     while (!emShouldClose(window))
     {
+        emSwapBuffers(window);
         emPollEvents();
     }
 

@@ -55,6 +55,7 @@ extern _SetWindowLongA@12
 extern _GetWindowLongA@8
 extern _ReleaseDC@8
 extern _wglDeleteContext@4
+extern _SwapBuffers@4
 
 global _emInit
 global _emTerminate
@@ -63,6 +64,7 @@ global _emDestroyWindow
 global _emShouldClose
 global _emPollEvents
 global _emMakeContext
+global _emSwapBuffers
 
 _emInit:
     PUSH EBP
@@ -326,6 +328,18 @@ _emMakeContext:
     RET
 .context_fail:
     MOV EAX, 0
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSwapBuffers:
+    PUSH EBP
+    MOV  EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    PUSH DWORD [EBX + EMBERWindow.hdc]
+    CALL _SwapBuffers@4
 
     MOV ESP, EBP
     POP EBP

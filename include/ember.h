@@ -102,6 +102,18 @@ void emPollEvents();
  */
 int emMakeContext(EMBERWindow* window);
 
+/**
+ * @brief Swaps the front and back buffer of OpenGL context.
+ *
+ * This function swaps the front buffer, the one displayed on the window,
+ * and the back buffer, the one being drawn to in the background.
+ * Swapping the buffers makes rendering while displaying visual data
+ * more efficient.
+ *
+ * @param window A pointer to the EMBERWindow structure of the window to swap the buffers for.
+ */
+void emSwapBuffers(EMBERWindow* window);
+
 #ifdef __cplusplus
 }
 #endif
