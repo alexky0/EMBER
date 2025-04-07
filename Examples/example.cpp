@@ -9,7 +9,7 @@ int main() {
         return -1;
     };
 
-    EMBERWindow window = emCreateWindow("EMBER Window", 600, 600);
+    EMBERWindow* window = emCreateWindow("EMBER Window", 600, 600);
 
     if (!window)
     {
@@ -18,18 +18,19 @@ int main() {
         return -1;
     }
 
-    if (!emMakeContext())
+    if (!emMakeContext(window))
     {
         printf("Failed to create context for EMBER window");
         emTerminate();
         return -1;
     }
 
-    while (!emShouldClose())
+    while (!emShouldClose(window))
     {
         emPollEvents();
     }
 
+    emDestroyWindow(window);
     emTerminate();
 
     return 0;

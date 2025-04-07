@@ -6,13 +6,18 @@ extern "C" {
 #endif
 
 /**
- * @brief Opaque pointer type representing an EMBER window.
+ * @brief Structure representing an EMBER window.
  *
- * You should treat this type as an opaque handle and not directly
- * access its members. It is used to identify and manipulate windows
- * created by EMBER.
+ * This structure holds the internal data associated with a window
+ * created by EMBER. You should treat instances of this struct as
+ * opaque handles and not directly access its members from C/C++.
  */
-typedef void* EMBERWindow;
+typedef struct EMBERWindow_t {
+    void* hwnd;    /* Window handle */
+    void* hdc;     /* Device context handle */
+    void* hglrc;   /* OpenGL rendering context handle */
+    int quit;      /* Flag indicating whether the window should close */
+} EMBERWindow;
 
 /**
  * @brief Initializes the EMBER library.
@@ -39,7 +44,8 @@ void emTerminate();
  *
  * This function creates a Windows window with the specified title,
  * width, and height. It also initializes the window for basic OpenGL
- * rendering capabilities, including setting up a double buffer.
+ * rendering capabilities, including setting up a double buffer
+ * and associating internal window data.
  *
  * @param title A null-terminated string representing the title of the window.
  * @param width The desired width of the window in pixels.
@@ -47,7 +53,17 @@ void emTerminate();
  * @return An EMBERWindow handle to the newly created window on success,
  * or NULL on failure.
  */
-EMBERWindow emCreateWindow(const char* title, int width, int height);
+EMBERWindow* emCreateWindow(const char* title, int width, int height);
+
+/**
+ * @brief Destroys the specified EMBER window.
+ *
+ * This function destroys the Windows window associated with the
+ * EMBERWindow handle and releases any associated resources.
+ *
+ * @param window A pointer to the EMBERWindow structure of the window to destroy.
+ */
+void emDestroyWindow(EMBERWindow* window);
 
 /**
  * @brief Checks if the user has requested to close the specified window.
@@ -55,33 +71,36 @@ EMBERWindow emCreateWindow(const char* title, int width, int height);
  * This function checks the internal state of the EMBER window to see
  * if a close event (e.g., clicking the close button) has been processed.
  *
+ * @param window A pointer to the EMBERWindow structure of the window to check.
  * @return 1 if the window should close, 0 otherwise.
  *
  * @note This function typically relies on the event polling mechanism
  * provided by emPollEvents().
  */
- int emShouldClose();
+int emShouldClose(EMBERWindow* window);
 
- /**
-  * @brief Polls for and processes pending window events.
-  *
-  * This function checks the Windows message queue for events related to
-  * EMBER-created windows (e.g., keyboard input, mouse input, window resizing,
-  * close requests). It dispatches these events to the appropriate window
-  * procedures for handling. This function should be called regularly in
-  * the application's main loop to ensure responsiveness.
-  */
+/**
+ * @brief Polls for and processes pending window events.
+ *
+ * This function checks the Windows message queue for events related to
+ * EMBER-created windows (e.g., keyboard input, mouse input, window resizing,
+ * close requests). It dispatches these events to the appropriate window
+ * procedures for handling. This function should be called regularly in
+ * the application's main loop to ensure responsiveness.
+ */
 void emPollEvents();
 
 /**
- * @brief Gives the current EMBER window context for OpenGL to render to.
- * 
- * This function uses the device context and OpenGL render context to
- * give the current window context for OpenGL to render to.
+ * @brief Makes the OpenGL rendering context current for the specified window.
  *
+ * This function makes the OpenGL rendering context associated with the
+ * given EMBER window the current context, allowing OpenGL commands to
+ * be drawn to that window.
+ *
+ * @param window A pointer to the EMBERWindow structure of the window to make the context current for.
  * @return 1 on success, 0 on fail.
-*/
-int emMakeContext();
+ */
+int emMakeContext(EMBERWindow* window);
 
 #ifdef __cplusplus
 }

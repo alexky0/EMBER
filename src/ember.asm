@@ -15,16 +15,20 @@ bits 32
 %define PFD_DOUBLEBUFFER 0x00000001
 %define PFD_GENERIC_ACCELERATED 0x00001000
 %define PFD_TYPE_RGBA 0
+%define GWLP_USERDATA (-21)
 
 section .data
 ClassName DB "EmberClass", 0
 
 section .bss
 hInstance RESB 4
-hwnd RESB 4
-hdc RESB 4
-hglrc RESB 4
-quit RESB 4
+
+struc EMBERWindow
+    .hwnd RESB 4
+    .hdc RESB 4
+    .hglrc RESB 4
+    .quit RESB 4
+endstruc
 
 section .text
 
@@ -47,6 +51,10 @@ extern _GetDC@4
 extern _wglCreateContext@4
 extern _ChoosePixelFormat@8
 extern _SetPixelFormat@12
+extern _SetWindowLongA@12
+extern _GetWindowLongA@8
+extern _ReleaseDC@8
+extern _wglDeleteContext@4
 
 global _emInit
 global _emTerminate
@@ -85,10 +93,10 @@ _emInit:
     PUSH EBX
     CALL _RegisterClassExA@4
 
+    ADD ESP, 48
+
     TEST EAX, EAX
     JZ .init_fail
-
-    ADD ESP, 48
 
     MOV EAX, 1
 
@@ -96,8 +104,6 @@ _emInit:
     POP EBP
     RET
 .init_fail:
-    ADD ESP,  48
-
     PUSH DWORD [hInstance]
     PUSH ClassName 
     CALL _UnregisterClassA@8
@@ -112,9 +118,6 @@ _emTerminate:
     PUSH EBP
     MOV EBP, ESP
 
-    PUSH DWORD [hwnd]
-    CALL _DestroyWindow@4
-
     PUSH DWORD [hInstance]
     PUSH ClassName
     CALL _UnregisterClassA@8
@@ -126,7 +129,15 @@ _emTerminate:
 _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
-
+    
+    SUB ESP, 16
+    MOV EDI, ESP
+    
+    MOV DWORD [EDI + EMBERWindow.hwnd], 0
+    MOV DWORD [EDI + EMBERWindow.hdc], 0
+    MOV DWORD [EDI + EMBERWindow.hglrc], 0
+    MOV DWORD [EDI + EMBERWindow.quit], 0
+    
     PUSH NULL
     PUSH DWORD [hInstance]
     PUSH NULL
@@ -139,21 +150,30 @@ _emCreateWindow:
     PUSH DWORD [EBP + 8]
     PUSH ClassName
     PUSH NULL
-
     CALL _CreateWindowExA@48
-    MOV [hwnd], EAX
-
+    TEST EAX, EAX
+    JZ .create_fail
+    
+    MOV [EDI + EMBERWindow.hwnd], EAX
+    
+    PUSH EDI
+    PUSH GWLP_USERDATA
+    PUSH EAX
+    CALL _SetWindowLongA@12
+    
     PUSH SW_NORMAL
-    PUSH DWORD [hwnd]
+    PUSH DWORD [EDI + EMBERWindow.hwnd]
     CALL _ShowWindow@8
-
-    PUSH DWORD [hwnd]
+    
+    PUSH DWORD [EDI + EMBERWindow.hwnd]
     CALL _UpdateWindow@4
-
-    PUSH DWORD [hwnd]
+    
+    PUSH DWORD [EDI + EMBERWindow.hwnd]
     CALL _GetDC@4
-    MOV [hdc], EAX
-
+    MOV [EDI + EMBERWindow.hdc], EAX
+    TEST EAX, EAX
+    JZ .create_fail
+    
     SUB ESP, 40
     MOV EBX, ESP
     MOV WORD  [EBX + 0],  40
@@ -175,36 +195,63 @@ _emCreateWindow:
     MOV BYTE  [EBX + 21], 0
     MOV BYTE  [EBX + 22], 0
     MOV BYTE  [EBX + 23], 24
-    MOV BYTE  [EBX + 25], 8
+    MOV BYTE  [EBX + 24], 8
     MOV BYTE  [EBX + 25], 0
     MOV BYTE  [EBX + 26], 0
     MOV BYTE  [EBX + 27], 0
     MOV DWORD [EBX + 28], 0
     MOV DWORD [EBX + 32], 0
     MOV DWORD [EBX + 36], 0
+    
     PUSH EBX
-    PUSH DWORD [hdc]
+    PUSH DWORD [EDI + EMBERWindow.hdc]
     CALL _ChoosePixelFormat@8
+    CMP EAX, 0
+    JE .create_fail
+    
     PUSH EBX
     PUSH EAX
-    PUSH DWORD [hdc]
+    PUSH DWORD [EDI + EMBERWindow.hdc]
     CALL _SetPixelFormat@12
+    TEST EAX, EAX
+    JZ .create_fail
     ADD ESP, 40
-
-    PUSH DWORD [hdc]
+    
+    PUSH DWORD [EDI + EMBERWindow.hdc]
     CALL _wglCreateContext@4
-    MOV [hglrc], EAX
-
+    MOV [EDI + EMBERWindow.hglrc], EAX
+    TEST EAX, EAX
+    JZ .create_fail
+    
+    MOV EAX, EDI
     MOV ESP, EBP
     POP EBP
-    MOV EAX, [hwnd]
+    RET
+.create_fail:
+    ADD ESP, 40
+
+    PUSH DWORD [EDI + EMBERWindow.hwnd]
+    CALL _DestroyWindow@4
+
+    XOR EAX, EAX
+    MOV ESP, EBP
+    POP EBP
     RET
 
 _emDestroyWindow:
     PUSH EBP
     MOV EBP, ESP
 
-    PUSH DWORD [hwnd]
+    MOV EBX, [EBP + 8]
+
+    PUSH DWORD [EBX + EMBERWindow.hglrc]
+    CALL _wglDeleteContext@4
+
+    PUSH DWORD [EBX + EMBERWindow.hwnd]
+    PUSH DWORD [EBX + EMBERWindow.hdc]
+    CALL _ReleaseDC@8
+
+    PUSH DWORD [EBX + EMBERWindow.hwnd]
     CALL _DestroyWindow@4
 
     MOV ESP, EBP
@@ -215,17 +262,20 @@ _emShouldClose:
     PUSH EBP
     MOV EBP, ESP
 
-    CMP DWORD [quit], 1
-    JZ .quit
+    MOV EBX, [EBP + 8]
+    CMP DWORD [EBX + EMBERWindow.quit], 1
+    JE .quit
+
+    MOV EAX, 0
 
     MOV ESP, EBP
     POP EBP
-    MOV EAX, 0
     RET
 .quit:
+    MOV EAX, 1
+
     MOV ESP, EBP
     POP EBP
-    MOV EAX, 1
     RET
 
 _emPollEvents:
@@ -261,8 +311,9 @@ _emMakeContext:
     PUSH EBP
     MOV EBP, ESP
 
-    PUSH DWORD [hglrc]
-    PUSH DWORD [hdc]
+    MOV EBX, [EBP + 8]
+    PUSH DWORD [EBX + EMBERWindow.hglrc]
+    PUSH DWORD [EBX + EMBERWindow.hdc]
     CALL _wglMakeCurrent@8
 
     TEST EAX, EAX
@@ -280,30 +331,38 @@ _emMakeContext:
     POP EBP
     RET
 
-
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
-
+    
+    PUSH DWORD [EBP + 8]
+    PUSH GWLP_USERDATA
+    CALL _GetWindowLongA@8
+    MOV EBX, EAX
+    TEST EBX, EBX
+    JZ .default_proc
+    
     CMP DWORD [EBP + 12], WM_CLOSE
     JE .handle_close
-
+    
+.default_proc:
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
     PUSH DWORD [EBP + 12]
     PUSH DWORD [EBP + 8]
     CALL _DefWindowProcA@16
-
+    
     MOV ESP, EBP
     POP EBP
     RET
+    
 .handle_close:
     PUSH 0
     CALL _PostQuitMessage@4
-
-    MOV DWORD [quit], 1
+    
+    MOV DWORD [EBX + EMBERWindow.quit], 1
     XOR EAX, EAX
-
+    
     MOV ESP, EBP
     POP EBP
     RET
