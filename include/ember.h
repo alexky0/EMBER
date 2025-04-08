@@ -17,9 +17,6 @@ extern "C" {
     void* hdc;           /* Device context handle */
     void* hglrc;         /* OpenGL rendering context handle */
     int quit;            /* Flag indicating whether the window should close */
-    int majorVersion;    /* OpenGL context major version */
-    int minorVersion;    /* OpenGL context minor version */
-    int profileMask;     /* OpenGL context profile mask */
 } EMBERWindow;
 
 /* OpenGL Context Profile Constants */
@@ -52,23 +49,22 @@ int emInit();
 void emTerminate();
 
 /**
- * @brief Sets hints for the next window to be created.
+ * @brief Sets global hints for the next window to be created.
  *
- * This function allows setting various parameters for OpenGL context
- * creation before calling emCreateWindow(). The hint values set will
- * apply to the next window created.
+ * This function allows setting various global parameters for OpenGL context
+ * creation. These hints will apply to all subsequent windows created
+ * after the hint is set.
  *
- * @param window Pointer to the EMBERWindow structure.
  * @param hint The hint to set (one of the EMBER_CONTEXT_* constants).
  * @param value The value to set for the specified hint.
  *
  * Valid hints:
  * - EMBER_CONTEXT_MAJOR_VERSION: Major version of OpenGL context
  * - EMBER_CONTEXT_MINOR_VERSION: Minor version of OpenGL context
- * - EMBER_CONTEXT_PROFILE: Profile mask (EMBER_OPENGL_CORE_PROFILE or 
- *                          EMBER_OPENGL_COMPATIBILITY_PROFILE)
+ * - EMBER_CONTEXT_PROFILE: Profile mask (EMBER_OPENGL_CORE_PROFILE or
+ * EMBER_OPENGL_COMPATIBILITY_PROFILE)
  */
- void emWindowHint(EMBERWindow* window, int hint, int value);
+ void emWindowHint(int hint, int value);
 
 /**
  * @brief Creates a new window for OpenGL rendering.
@@ -144,6 +140,20 @@ int emMakeContext(EMBERWindow* window);
  * @param window A pointer to the EMBERWindow structure of the window to swap the buffers for.
  */
 void emSwapBuffers(EMBERWindow* window);
+
+/**
+ * @brief Retrieves the address of an OpenGL extension function.
+ *
+ * This function provides a way to access OpenGL extension functions
+ * that might not be directly available in the core OpenGL library.
+ * You typically use this function in conjunction with a library like
+ * GLAD or GLEW to load and use modern OpenGL features.
+ *
+ * @param procName A null-terminated string specifying the name of the
+ * OpenGL extension function to retrieve.
+ * @return A pointer to the requested function if found, otherwise NULL.
+ */
+ void* emGetProc(const char* procName);
 
 #ifdef __cplusplus
 }
