@@ -13,10 +13,11 @@ extern "C" {
  * opaque handles and not directly access its members from C/C++.
  */
  typedef struct EMBERWindow_t {
-    void* hwnd;          /* Window handle */
-    void* hdc;           /* Device context handle */
-    void* hglrc;         /* OpenGL rendering context handle */
-    int quit;            /* Flag indicating whether the window should close */
+    void* hwnd;             /* Window handle */
+    void* hdc;              /* Device context handle */
+    void* hglrc;            /* OpenGL rendering context handle */
+    int quit;               /* Flag indicating whether the window should close */
+    unsigned char keys[256];/* Array of 256 key states */
 } EMBERWindow;
 
 /* OpenGL Context Profile Constants */

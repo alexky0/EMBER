@@ -39,6 +39,7 @@ struc EMBERWindow
     .hdc RESB 4
     .hglrc RESB 4
     .quit RESB 4
+    .keys RESB 256
 endstruc
 
 section .text
@@ -178,7 +179,7 @@ _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
     
-    PUSH 16
+    PUSH 272
     CALL _malloc
     ADD ESP, 4
     
@@ -191,6 +192,14 @@ _emCreateWindow:
     MOV DWORD [EDI + EMBERWindow.hdc], 0
     MOV DWORD [EDI + EMBERWindow.hglrc], 0
     MOV DWORD [EDI + EMBERWindow.quit], 0
+
+    MOV ECX, 256
+    MOV ESI, EDI
+    ADD ESI, EMBERWindow.keys
+.key_init_loop:
+    MOV BYTE [ESI], 0
+    INC ESI
+    LOOP .key_init_loop
     
     PUSH NULL
     PUSH DWORD [hInstance]
