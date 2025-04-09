@@ -81,6 +81,7 @@ global _emTerminate
 global _emWindowHint
 global _emCreateWindow
 global _emDestroyWindow
+global _emSetShouldClose
 global _emShouldClose
 global _emPollEvents
 global _emMakeContext
@@ -404,6 +405,19 @@ _emShouldClose:
     POP EBP
     RET
 
+_emSetShouldClose:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EAX, [EBP + 8]
+    ADD EAX, EMBERWindow.quit
+
+    MOV DWORD [EAX], 1
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _emPollEvents:
     PUSH EBP
     MOV EBP, ESP
@@ -514,7 +528,6 @@ _emGetKey:
 
     MOVZX EAX, BYTE [ESI]
     JMP .get_key_end
-
 .key_not_pressed:
     XOR EAX, EAX
 .get_key_end:
@@ -542,7 +555,7 @@ _WndProc:
     JE .handle_close
     CMP DWORD [EBP + 12], WM_KEYDOWN
     JE .handle_keydown
-    CMP DWORD [EBP + 12], WM_KEYDOWN
+    CMP DWORD [EBP + 12], WM_KEYUP
     JE .handle_keyup
 .default_proc:
     PUSH DWORD [EBP + 20]
@@ -562,9 +575,25 @@ _WndProc:
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_keydown:
+    CMP DWORD [EBP + 16], 255
+    JA .default_proc
 
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
+    MOV BYTE [ESI], 1         ; Set the key state to pressed (1)
+    XOR EAX, EAX             ; Indicate that the message was handled
+    JMP .wndproc_end
 .handle_keyup:
-    
+    CMP DWORD [EBP + 16], 255 ; Check if wParam is within bounds
+    JA .default_proc
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
+    MOV BYTE [ESI], 0         ; Set the key state to released (0)
+    XOR EAX, EAX             ; Indicate that the message was handled
+    JMP .wndproc_end
 .wndproc_end:
     MOV ESP, EBP
     POP EBP
