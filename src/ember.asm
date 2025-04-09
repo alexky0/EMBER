@@ -9,6 +9,8 @@ bits 32
 %define WS_VISIBLE 0x10000000
 %define SW_NORMAL 1
 %define WM_CLOSE 0x0010
+%define WM_KEYUP 0x0101
+%define WM_KEYDOWN 0x0100
 %define PM_REMOVE 0x0001
 %define PFD_DRAW_TO_WINDOW 0x00000004
 %define PFD_SUPPORT_OPENGL 0x00000020
@@ -21,7 +23,6 @@ bits 32
 %define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
 %define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
 %define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
-
 
 section .data
 ClassName DB "EmberClass", 0
@@ -39,6 +40,7 @@ struc EMBERWindow
     .hdc RESB 4
     .hglrc RESB 4
     .quit RESB 4
+    .keys RESB 256
 endstruc
 
 section .text
@@ -79,11 +81,13 @@ global _emTerminate
 global _emWindowHint
 global _emCreateWindow
 global _emDestroyWindow
+global _emSetShouldClose
 global _emShouldClose
 global _emPollEvents
 global _emMakeContext
 global _emSwapBuffers
 global _emGetProc
+global _emGetKey
 
 _emInit:
     PUSH EBP
@@ -178,7 +182,7 @@ _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
     
-    PUSH 16
+    PUSH 272
     CALL _malloc
     ADD ESP, 4
     
@@ -191,6 +195,14 @@ _emCreateWindow:
     MOV DWORD [EDI + EMBERWindow.hdc], 0
     MOV DWORD [EDI + EMBERWindow.hglrc], 0
     MOV DWORD [EDI + EMBERWindow.quit], 0
+
+    MOV ECX, 256
+    MOV ESI, EDI
+    ADD ESI, EMBERWindow.keys
+.key_init_loop:
+    MOV BYTE [ESI], 0
+    INC ESI
+    LOOP .key_init_loop
     
     PUSH NULL
     PUSH DWORD [hInstance]
@@ -393,6 +405,19 @@ _emShouldClose:
     POP EBP
     RET
 
+_emSetShouldClose:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EAX, [EBP + 8]
+    ADD EAX, EMBERWindow.quit
+
+    MOV DWORD [EAX], 1
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _emPollEvents:
     PUSH EBP
     MOV EBP, ESP
@@ -485,6 +510,31 @@ _emGetProc:
     POP EBP
     RET
 
+_emGetKey:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    CMP ECX, 0
+    JL .key_not_pressed
+    CMP ECX, 255
+    JG .key_not_pressed
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, ECX
+
+    MOVZX EAX, BYTE [ESI]
+    JMP .get_key_end
+.key_not_pressed:
+    XOR EAX, EAX
+.get_key_end:
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
@@ -502,8 +552,19 @@ _WndProc:
     JZ .default_proc
     
     CMP DWORD [EBP + 12], WM_CLOSE
-    JNE .default_proc
-    
+    JE .handle_close
+    CMP DWORD [EBP + 12], WM_KEYDOWN
+    JE .handle_keydown
+    CMP DWORD [EBP + 12], WM_KEYUP
+    JE .handle_keyup
+.default_proc:
+    PUSH DWORD [EBP + 20]
+    PUSH DWORD [EBP + 16]
+    PUSH DWORD [EBP + 12]
+    PUSH DWORD [EBP + 8]
+    CALL _DefWindowProcA@16
+    JMP .wndproc_end
+.handle_close:
     MOV DWORD [EBX + EMBERWindow.quit], 1
     PUSH 0
     CALL _PostQuitMessage@4
@@ -513,14 +574,26 @@ _WndProc:
     
     XOR EAX, EAX
     JMP .wndproc_end
-    
-.default_proc:
-    PUSH DWORD [EBP + 20]
-    PUSH DWORD [EBP + 16]
-    PUSH DWORD [EBP + 12]
-    PUSH DWORD [EBP + 8]
-    CALL _DefWindowProcA@16
-    
+.handle_keydown:
+    CMP DWORD [EBP + 16], 255
+    JA .default_proc
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
+    MOV BYTE [ESI], 1         ; Set the key state to pressed (1)
+    XOR EAX, EAX             ; Indicate that the message was handled
+    JMP .wndproc_end
+.handle_keyup:
+    CMP DWORD [EBP + 16], 255 ; Check if wParam is within bounds
+    JA .default_proc
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
+    MOV BYTE [ESI], 0         ; Set the key state to released (0)
+    XOR EAX, EAX             ; Indicate that the message was handled
+    JMP .wndproc_end
 .wndproc_end:
     MOV ESP, EBP
     POP EBP
