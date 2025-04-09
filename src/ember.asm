@@ -497,7 +497,30 @@ _emGetProc:
     RET
 
 _emGetKey:
-    
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    CMP ECX, 0
+    JL .key_not_pressed
+    CMP ECX, 255
+    JG .key_not_pressed
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, ECX
+
+    MOVZX EAX, BYTE [ESI]
+    JMP .get_key_end
+
+.key_not_pressed:
+    XOR EAX, EAX
+.get_key_end:
+    MOV ESP, EBP
+    POP EBP
+    RET
 
 _WndProc:
     PUSH EBP
