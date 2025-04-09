@@ -22,7 +22,6 @@ bits 32
 %define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
 %define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
-
 section .data
 ClassName DB "EmberClass", 0
 wglCreateContextAttribsARB_name DB "wglCreateContextAttribsARB", 0
@@ -85,6 +84,7 @@ global _emPollEvents
 global _emMakeContext
 global _emSwapBuffers
 global _emGetProc
+global _emGetKey
 
 _emInit:
     PUSH EBP
@@ -493,6 +493,9 @@ _emGetProc:
     MOV ESP, EBP
     POP EBP
     RET
+
+_emGetKey:
+    
 
 _WndProc:
     PUSH EBP

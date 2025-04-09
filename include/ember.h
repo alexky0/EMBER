@@ -154,7 +154,19 @@ void emSwapBuffers(EMBERWindow* window);
  * OpenGL extension function to retrieve.
  * @return A pointer to the requested function if found, otherwise NULL.
  */
- void* emGetProc(const char* procName);
+void* emGetProc(const char* procName);
+
+/**
+ * @brief Retrieves the state of a key on a given window.
+ *
+ * This function retrieves the state of a given key within
+ * the given window's key states array.
+ *
+ * @param window A pointer to the EMBERWindow structure to detect keypresses.
+ * @param key The given key to detect key presses for
+ * @return The state of the key, 1 for pressed, 0 for not presse
+ */
+int emGetKey(EMBERWindow* window, int key);
 
 #ifdef __cplusplus
 }
