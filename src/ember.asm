@@ -9,6 +9,8 @@ bits 32
 %define WS_VISIBLE 0x10000000
 %define SW_NORMAL 1
 %define WM_CLOSE 0x0010
+%define WM_KEYUP 0x0101
+%define WM_KEYDOWN 0x0100
 %define PM_REMOVE 0x0001
 %define PFD_DRAW_TO_WINDOW 0x00000004
 %define PFD_SUPPORT_OPENGL 0x00000020
@@ -514,8 +516,19 @@ _WndProc:
     JZ .default_proc
     
     CMP DWORD [EBP + 12], WM_CLOSE
-    JNE .default_proc
-    
+    JE .handle_close
+    CMP DWORD [EBP + 12], WM_KEYDOWN
+    JE .handle_keydown
+    CMP DWORD [EBP + 12], WM_KEYDOWN
+    JE .handle_keyup
+.default_proc:
+    PUSH DWORD [EBP + 20]
+    PUSH DWORD [EBP + 16]
+    PUSH DWORD [EBP + 12]
+    PUSH DWORD [EBP + 8]
+    CALL _DefWindowProcA@16
+    JMP .wndproc_end
+.handle_close:
     MOV DWORD [EBX + EMBERWindow.quit], 1
     PUSH 0
     CALL _PostQuitMessage@4
@@ -525,13 +538,9 @@ _WndProc:
     
     XOR EAX, EAX
     JMP .wndproc_end
-    
-.default_proc:
-    PUSH DWORD [EBP + 20]
-    PUSH DWORD [EBP + 16]
-    PUSH DWORD [EBP + 12]
-    PUSH DWORD [EBP + 8]
-    CALL _DefWindowProcA@16
+.handle_keydown:
+
+.handle_keyup:
     
 .wndproc_end:
     MOV ESP, EBP
