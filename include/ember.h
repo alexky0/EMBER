@@ -12,22 +12,121 @@ extern "C" {
  * created by EMBER. You should treat instances of this struct as
  * opaque handles and not directly access its members from C/C++.
  */
- typedef struct EMBERWindow_t {
-    void* hwnd;             /* Window handle */
-    void* hdc;              /* Device context handle */
-    void* hglrc;            /* OpenGL rendering context handle */
-    int quit;               /* Flag indicating whether the window should close */
-    unsigned char keys[256];/* Array of 256 key states */
+typedef struct EMBERWindow_t {
+    void* hwnd;          /* Window handle */
+    void* hdc;           /* Device context handle */
+    void* hglrc;         /* OpenGL rendering context handle */
+    int quit;            /* Flag indicating whether the window should close */
+    unsigned char keys[256]; /* Array of 256 key states */
+
+    /* Callback function pointers */
+    void (*keyCallback)(struct EMBERWindow_t*, int, int, int, int);
+    void (*cursorPosCallback)(struct EMBERWindow_t*, double, double);
+    void (*cursorEnterCallback)(struct EMBERWindow_t*, int);
+    void (*mouseButtonCallback)(struct EMBERWindow_t*, int, int, int);
+    void (*scrollCallback)(struct EMBERWindow_t*, double, double);
+    void (*resizeCallback)(struct EMBERWindow_t*, int, int);
 } EMBERWindow;
 
+/**
+ * @brief Function pointer type for key input callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * a keyboard key is pressed, released, or repeated.
+ *
+ * @param window The window that received the event.
+ * @param key The keyboard key that was pressed or released. See EMBER_KEY_* constants.
+ * @param scancode The system-specific scancode of the key.
+ * @param action The key action. One of:
+ * - EMBER_KEY_PRESSED
+ * - EMBER_KEY_RELEASED
+ * - EMBER_KEY_REPEAT
+ * @param mods Bit field describing which modifier keys were held down.
+ * Possible values (can be combined with bitwise OR):
+ * - 0 (no modifiers)
+ * - EMBER_MOD_SHIFT
+ * - EMBER_MOD_CONTROL
+ * - EMBER_MOD_ALT
+ * - EMBER_MOD_SUPER
+ */
+typedef void (*emKeyCallback)(EMBERWindow*, int, int, int, int);
+
+/**
+ * @brief Function pointer type for cursor position callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * the cursor is moved within the window.
+ *
+ * @param window The window that received the event.
+ * @param xpos The new x-coordinate of the cursor, relative to the left edge of the window.
+ * @param ypos The new y-coordinate of the cursor, relative to the top edge of the window.
+ */
+typedef void (*emCursorPosCallback)(EMBERWindow*, double, double);
+
+/**
+ * @brief Function pointer type for cursor enter/leave callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * the cursor enters or leaves the window.
+ *
+ * @param window The window that received the event.
+ * @param entered 1 if the cursor entered the window, 0 if it left.
+ */
+typedef void (*emCursorEnterCallback)(EMBERWindow*, int);
+
+/**
+ * @brief Function pointer type for mouse button callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * a mouse button is pressed or released.
+ *
+ * @param window The window that received the event.
+ * @param button The mouse button that was pressed or released. See EMBER_MOUSE_BUTTON_* constants.
+ * @param action The button action. One of:
+ * - EMBER_PRESS
+ * - EMBER_RELEASE
+ * @param mods Bit field describing which modifier keys were held down.
+ * Possible values (can be combined with bitwise OR):
+ * - 0 (no modifiers)
+ * - EMBER_MOD_SHIFT
+ * - EMBER_MOD_CONTROL
+ * - EMBER_MOD_ALT
+ * - EMBER_MOD_SUPER
+ */
+typedef void (*emMouseButtonCallback)(EMBERWindow*, int, int, int);
+
+/**
+ * @brief Function pointer type for scroll callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * the user scrolls with a mouse wheel or trackpad.
+ *
+ * @param window The window that received the event.
+ * @param xoffset The amount of horizontal scrolling.
+ * @param yoffset The amount of vertical scrolling.
+ */
+typedef void (*emScrollCallback)(EMBERWindow*, double, double);
+
+/**
+ * @brief Function pointer type for window resize callbacks.
+ *
+ * This type defines the signature for functions that will be called when
+ * the window is resized.
+ *
+ * @param window The window that was resized.
+ * @param width The new width of the window in pixels.
+ * @param height The new height of the window in pixels.
+ */
+typedef void (*emResizeCallback)(EMBERWindow*, int, int);
+
 /* OpenGL Context Profile Constants */
-#define EMBER_OPENGL_CORE_PROFILE          0x00000001
+#define EMBER_OPENGL_CORE_PROFILE         0x00000001
 #define EMBER_OPENGL_COMPATIBILITY_PROFILE 0x00000002
 
 /* Window Hint Types */
-#define EMBER_CONTEXT_MAJOR_VERSION        1
-#define EMBER_CONTEXT_MINOR_VERSION        2
-#define EMBER_CONTEXT_PROFILE              3
+#define EMBER_CONTEXT_MAJOR_VERSION       1
+#define EMBER_CONTEXT_MINOR_VERSION       2
+#define EMBER_CONTEXT_PROFILE             3
 
 /* Key Code Definitions */
 #define EMBER_KEY_UNKNOWN         0
@@ -151,8 +250,32 @@ extern "C" {
 #define EMBER_KEY_PERIOD          46
 
 /* Key State Constants */
-#define EMBER_KEY_PRESSED   1
-#define EMBER_KEY_NOT_PRESSED 0
+#define EMBER_KEY_PRESSED     1
+#define EMBER_KEY_RELEASED    0
+#define EMBER_KEY_REPEAT      2 /* For continuous key presses */
+
+/* Modifier Key Masks */
+#define EMBER_MOD_SHIFT   0x0001
+#define EMBER_MOD_CONTROL 0x0002
+#define EMBER_MOD_ALT     0x0004
+#define EMBER_MOD_SUPER   0x0008
+
+/* Mouse Button Definitions */
+#define EMBER_MOUSE_BUTTON_1      0
+#define EMBER_MOUSE_BUTTON_LEFT   EMBER_MOUSE_BUTTON_1
+#define EMBER_MOUSE_BUTTON_2      1
+#define EMBER_MOUSE_BUTTON_RIGHT  EMBER_MOUSE_BUTTON_2
+#define EMBER_MOUSE_BUTTON_3      2
+#define EMBER_MOUSE_BUTTON_MIDDLE EMBER_MOUSE_BUTTON_3
+#define EMBER_MOUSE_BUTTON_4      3
+#define EMBER_MOUSE_BUTTON_5      4
+#define EMBER_MOUSE_BUTTON_6      5
+#define EMBER_MOUSE_BUTTON_7      6
+#define EMBER_MOUSE_BUTTON_8      7
+
+/* Mouse Button Action Constants */
+#define EMBER_PRESS   1
+#define EMBER_RELEASE 0
 
 /**
  * @brief Initializes the EMBER library.
@@ -190,7 +313,7 @@ void emTerminate();
  * - EMBER_CONTEXT_PROFILE: Profile mask (EMBER_OPENGL_CORE_PROFILE or
  * EMBER_OPENGL_COMPATIBILITY_PROFILE)
  */
- void emWindowHint(int hint, int value);
+void emWindowHint(int hint, int value);
 
 /**
  * @brief Creates a new window for OpenGL rendering.
@@ -298,13 +421,98 @@ void* emGetProc(const char* procName);
  * the given window's key states array.
  *
  * @param window A pointer to the EMBERWindow structure to detect keypresses.
- * @param key The given key to detect key presses for
- * @return The state of the key, 1 for pressed, 0 for not presse
+ * @param key The given key to detect key presses for (see EMBER_KEY_* constants).
+ * @return The state of the key, 1 for pressed, 0 for not pressed.
  */
 int emGetKey(EMBERWindow* window, int key);
+
+/**
+ * @brief Sets the callback function for key events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when a key is pressed, released, or repeated on the specified window.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the key callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emKeyCallback
+ */
+void emSetKeyCallback(EMBERWindow* window, emKeyCallback callback);
+
+/**
+ * @brief Sets the callback function for cursor position events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when the cursor is moved within the specified window.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the cursor position callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emCursorPosCallback
+ */
+void emSetCursorPosCallback(EMBERWindow* window, emCursorPosCallback callback);
+
+/**
+ * @brief Sets the callback function for cursor enter/leave events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when the cursor enters or leaves the specified window.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the cursor enter/leave callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emCursorEnterCallback
+ */
+void emSetCursorEnterCallback(EMBERWindow* window, emCursorEnterCallback callback);
+
+/**
+ * @brief Sets the callback function for mouse button events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when a mouse button is pressed or released on the specified window.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the mouse button callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emMouseButtonCallback
+ */
+void emSetMouseButtonCallback(EMBERWindow* window, emMouseButtonCallback callback);
+
+/**
+ * @brief Sets the callback function for scroll events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when the user scrolls with a mouse wheel or trackpad on the
+ * specified window.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the scroll callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emScrollCallback
+ */
+void emSetScrollCallback(EMBERWindow* window, emScrollCallback callback);
+
+/**
+ * @brief Sets the callback function for window resize events.
+ *
+ * This function sets the user-defined callback function that will be
+ * called when the specified window is resized.
+ *
+ * @param window The window to set the callback for.
+ * @param callback The function pointer to the window resize callback function.
+ * If NULL, the current callback will be unset.
+ *
+ * @sa emResizeCallback
+ */
+void emSetResizeCallback(EMBERWindow* window, emResizeCallback callback);
 
 #ifdef __cplusplus
 }
 #endif
-
+ 
 #endif

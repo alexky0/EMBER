@@ -41,6 +41,12 @@ struc EMBERWindow
     .hglrc RESB 4
     .quit RESB 4
     .keys RESB 256
+    .key_callback RESB 4
+    .cursor_pos_callback RESB 4
+    .cursor_enter_callback RESB 4
+    .mouse_button_callback RESB 4
+    .scroll_callback RESB 4
+    .resize_callback RESB 4
 endstruc
 
 section .text
@@ -88,6 +94,12 @@ global _emMakeContext
 global _emSwapBuffers
 global _emGetProc
 global _emGetKey
+global _emSetKeyCallback
+global _emSetCursorPosCallback
+global _emSetCursorEnterCallback
+global _emSetMouseButtonCallback
+global _emSetScrollCallback
+global _emSetResizeCallback
 
 _emInit:
     PUSH EBP
@@ -182,7 +194,7 @@ _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
     
-    PUSH 272
+    PUSH 256 + 10 * 4
     CALL _malloc
     ADD ESP, 4
     
@@ -195,6 +207,12 @@ _emCreateWindow:
     MOV DWORD [EDI + EMBERWindow.hdc], 0
     MOV DWORD [EDI + EMBERWindow.hglrc], 0
     MOV DWORD [EDI + EMBERWindow.quit], 0
+    MOV DWORD [EDI + EMBERWindow.key_callback], 0
+    MOV DWORD [EDI + EMBERWindow.cursor_pos_callback], 0
+    MOV DWORD [EDI + EMBERWindow.cursor_enter_callback], 0
+    MOV DWORD [EDI + EMBERWindow.mouse_button_callback], 0
+    MOV DWORD [EDI + EMBERWindow.scroll_callback], 0
+    MOV DWORD [EDI + EMBERWindow.resize_callback], 0
 
     MOV ECX, 256
     MOV ESI, EDI
@@ -535,6 +553,84 @@ _emGetKey:
     POP EBP
     RET
 
+_emSetKeyCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.key_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetCursorPosCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.cursor_pos_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetCursorEnterCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.cursor_enter_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetMouseButtonCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.cursor_enter_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetScrollCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.scroll_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetResizeCallback:
+    PUSH EBP
+    MOV EBP, ESP
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+
+    MOV [EBX + EMBERWindow.resize_callback], ECX
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
@@ -580,19 +676,19 @@ _WndProc:
 
     MOV ESI, EBX
     ADD ESI, EMBERWindow.keys
-    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
-    MOV BYTE [ESI], 1         ; Set the key state to pressed (1)
-    XOR EAX, EAX             ; Indicate that the message was handled
+    ADD ESI, DWORD [EBP + 16]
+    MOV BYTE [ESI], 1
+    XOR EAX, EAX
     JMP .wndproc_end
 .handle_keyup:
-    CMP DWORD [EBP + 16], 255 ; Check if wParam is within bounds
+    CMP DWORD [EBP + 16], 255
     JA .default_proc
 
     MOV ESI, EBX
     ADD ESI, EMBERWindow.keys
-    ADD ESI, DWORD [EBP + 16] ; Offset by the key code (wParam)
-    MOV BYTE [ESI], 0         ; Set the key state to released (0)
-    XOR EAX, EAX             ; Indicate that the message was handled
+    ADD ESI, DWORD [EBP + 16]
+    MOV BYTE [ESI], 0
+    XOR EAX, EAX
     JMP .wndproc_end
 .wndproc_end:
     MOV ESP, EBP
