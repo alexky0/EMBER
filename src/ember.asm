@@ -854,13 +854,41 @@ _WndProc:
     CALL EAX
     XOR EAX, EAX
     JMP .wndproc_end
-.mouse_button:
 .handle_lbutton_down:
+    MOV ECX, EMBER_MOUSE_BUTTON_LEFT
+    MOV EDX, EMBER_PRESS
+    JMP .mouse_button
 .handle_lbutton_up:
+    MOV ECX, EMBER_MOUSE_BUTTON_LEFT
+    MOV EDX, EMBER_RELEASE
+    JMP .mouse_button
 .handle_rbutton_down:
+    MOV ECX, EMBER_MOUSE_BUTTON_RIGHT
+    MOV EDX, EMBER_PRESS
+    JMP .mouse_button
 .handle_rbutton_up:
+    MOV ECX, EMBER_MOUSE_BUTTON_RIGHT
+    MOV EDX, EMBER_RELEASE
+    JMP .mouse_button
 .handle_mbutton_down:
+    MOV ECX, EMBER_MOUSE_BUTTON_MIDDLE
+    MOV EDX, EMBER_PRESS
+    JMP .mouse_button
 .handle_mbutton_up:
+    MOV ECX, EMBER_MOUSE_BUTTON_MIDDLE
+    MOV EDX, EMBER_RELEASE
+    JMP .mouse_button
+.mouse_button:
+    MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
+    CMP EAX, NULL
+    JE .default_proc
+    PUSH 0
+    PUSH EDX
+    PUSH ECX
+    PUSH EBX
+    CALL EAX
+    XOR EAX, EAX
+    JMP .wndproc_end
 .handle_mousewheel:
 .handle_resize:
 .handle_set_cursor:
