@@ -2,28 +2,28 @@
 #include <glad/glad.h>
 #include <ember.h>
 
-static void key_callback(EMBERWindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == EMBER_KEY_ESCAPE && action == EMBER_PRESS)
-        emSetShouldClose(window);
+static void key_callback(EMBERWindow* window, int key, int scancode, int action, int mods) {
+    printf("Key Callback: key=%d, scancode=%d, action=%d, mods=%d\n", key, scancode, action, mods);
 }
 
-static void cursor_enter_callback(EMBERWindow* window, int entered)
-{
-    if (entered)
-        printf("Cursor entered window\n");
-    else
-        printf("Cursor left window\n");
+static void cursor_pos_callback(EMBERWindow* window, int xpos, int ypos) {
+    printf("Cursor Position Callback: xpos=%d, ypos=%d\n", xpos, ypos);
 }
 
-static void scroll_callback(EMBERWindow* window, int xoffset, int yoffset)
-{
-    printf("Scroll Offset: X = %d, Y = %d\n", xoffset, yoffset);
+static void cursor_location_callback(EMBERWindow* window, int location) {
+    printf("Cursor Location Callback: location=%d\n", location);
 }
 
-static void window_size_callback(EMBERWindow* window, int width, int height)
-{
-    printf("Window Size: Width = %d, Height = %d\n", width, height);
+static void mouse_button_callback(EMBERWindow* window, int button, int action, int mods) {
+    printf("Mouse Button Callback: button=%d, action=%d, mods=%d\n", button, action, mods);
+}
+
+static void scroll_callback(EMBERWindow* window, int xoffset, int yoffset) {
+    printf("Scroll Callback: xoffset=%d, yoffset=%d\n", xoffset, yoffset);
+}
+
+static void resize_callback(EMBERWindow* window, int width, int height) {
+    printf("Resize Callback: width=%d, height=%d\n", width, height);
     glViewport(0, 0, width, height);
 }
 
@@ -54,6 +54,13 @@ int main() {
         return -1;
     }
 
+    emSetKeyCallback(window, key_callback);
+    emSetCursorPosCallback(window, cursor_pos_callback);
+    emSetCursorLocationCallback(window, cursor_location_callback);
+    emSetMouseButtonCallback(window, mouse_button_callback);
+    emSetScrollCallback(window, scroll_callback);
+    emSetResizeCallback(window, resize_callback);
+
     if (!gladLoadGLLoader((GLADloadproc)emGetProc))
     {
         printf("Failed to initialize GLAD\n");
@@ -61,11 +68,6 @@ int main() {
         emTerminate();
         return -1;
     }
-
-    emSetKeyCallback(window, key_callback);
-    emSetCursorEnterCallback(window, cursor_enter_callback);
-    emSetScrollCallback(window, scroll_callback);
-    emSetResizeCallback(window, window_size_callback);
 
     glViewport(0, 0, 600, 600);
     glClearColor(0.17f, 0.8f, 0.4f, 1.0f);
