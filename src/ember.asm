@@ -83,7 +83,7 @@ struc EMBERWindow
     .keys RESB 256
     .key_callback RESB 4
     .cursor_pos_callback RESB 4
-    .cursor_enter_callback RESB 4
+    .cursor_location_callback RESB 4
     .mouse_button_callback RESB 4
     .scroll_callback RESB 4
     .resize_callback RESB 4
@@ -140,7 +140,7 @@ global _emGetProc
 global _emGetKey
 global _emSetKeyCallback
 global _emSetCursorPosCallback
-global _emSetCursorEnterCallback
+global _emSetCursorLocationCallback
 global _emSetMouseButtonCallback
 global _emSetScrollCallback
 global _emSetResizeCallback
@@ -253,7 +253,7 @@ _emCreateWindow:
     MOV DWORD [EDI + EMBERWindow.quit], EMBER_SHOULD_NOT_QUIT
     MOV DWORD [EDI + EMBERWindow.key_callback], NULL
     MOV DWORD [EDI + EMBERWindow.cursor_pos_callback], NULL 
-    MOV DWORD [EDI + EMBERWindow.cursor_enter_callback], NULL
+    MOV DWORD [EDI + EMBERWindow.cursor_location_callback], NULL
     MOV DWORD [EDI + EMBERWindow.mouse_button_callback], NULL
     MOV DWORD [EDI + EMBERWindow.scroll_callback], NULL
     MOV DWORD [EDI + EMBERWindow.resize_callback], NULL
@@ -623,14 +623,14 @@ _emSetCursorPosCallback:
     POP EBP
     RET
 
-_emSetCursorEnterCallback:
+_emSetCursorLocationCallback:
     PUSH EBP
     MOV EBP, ESP
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
-    MOV [EBX + EMBERWindow.cursor_enter_callback], ECX
+    MOV [EBX + EMBERWindow.cursor_location_callback], ECX
 
     MOV ESP, EBP
     POP EBP
@@ -699,6 +699,8 @@ _WndProc:
     JE .handle_keyup
     CMP DWORD [EBP + 12], WM_MOUSEMOVE
     JE .handle_mousemove
+    CMP DWORD [EBP + 12], WM_SETCURSOR
+    JE .handle_setcursor
     CMP DWORD [EBP + 12], WM_LBUTTONDOWN
     JE .handle_lbutton_down
     CMP DWORD [EBP + 12], WM_LBUTTONUP
@@ -717,8 +719,6 @@ _WndProc:
     JE .handle_mousewheel_horizontal
     CMP DWORD [EBP + 12], WM_SIZE
     JE .handle_resize
-    CMP DWORD [EBP + 12], WM_SETCURSOR
-    JE .handle_set_cursor
 .default_proc:
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
@@ -860,6 +860,20 @@ _WndProc:
     CALL EAX
     XOR EAX, EAX
     JMP .wndproc_end
+.handle_setcursor:
+    MOV EAX, [EBX + EMBERWindow.cursor_location_callback]
+    CMP EAX, NULL
+    JE .default_proc
+    
+    MOV ECX, [EBP + 20]
+    AND ECX, 0xFFFF
+    
+    PUSH ECX
+    PUSH EBX
+    CALL EAX
+    
+    MOV EAX, 1
+    JMP .wndproc_end
 .handle_lbutton_down:
     MOV ECX, EMBER_MOUSE_BUTTON_LEFT
     MOV EDX, EMBER_PRESS
@@ -973,7 +987,22 @@ _WndProc:
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_resize:
-.handle_set_cursor:
+    MOV EAX, [EBX + EMBERWindow.resize_callback]
+    CMP EAX, NULL
+    JE .default_proc
+
+    MOV ECX, [EBP + 20]
+    MOV EDX, ECX
+    SHR ECX, 16
+    AND EDX, 0xFFFF 
+
+    PUSH ECX
+    PUSH EDX
+    PUSH EBX
+    CALL EAX
+
+    XOR EAX, EAX
+    JMP .wndproc_end
 .wndproc_end:
     MOV ESP, EBP
     POP EBP

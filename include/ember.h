@@ -22,7 +22,7 @@ typedef struct EMBERWindow_t {
     /* Callback function pointers */
     void (*keyCallback)(struct EMBERWindow_t*, int, int, int, int);
     void (*cursorPosCallback)(struct EMBERWindow_t*, double, double);
-    void (*cursorEnterCallback)(struct EMBERWindow_t*, int);
+    void (*emCursorLocationCallback)(struct EMBERWindow_t*, int);
     void (*mouseButtonCallback)(struct EMBERWindow_t*, int, int, int);
     void (*scrollCallback)(struct EMBERWindow_t*, double, double);
     void (*resizeCallback)(struct EMBERWindow_t*, int, int);
@@ -64,15 +64,15 @@ typedef void (*emKeyCallback)(EMBERWindow*, int, int, int, int);
 typedef void (*emCursorPosCallback)(EMBERWindow*, int, int);
 
 /**
- * @brief Function pointer type for cursor enter/leave callbacks.
+ * @brief Function pointer type for cursor location callbacks.
  *
  * This type defines the signature for functions that will be called when
- * the cursor enters or leaves the window.
+ * the cursor changes location on the window.
  *
  * @param window The window that received the event.
- * @param entered 1 if the cursor entered the window, 0 if it left.
+ * @param location State of the current hit test
  */
-typedef void (*emCursorEnterCallback)(EMBERWindow*, int);
+typedef void (*emCursorLocationCallback)(EMBERWindow*, int);
 
 /**
  * @brief Function pointer type for mouse button callbacks.
@@ -455,18 +455,18 @@ void emSetKeyCallback(EMBERWindow* window, emKeyCallback callback);
 void emSetCursorPosCallback(EMBERWindow* window, emCursorPosCallback callback);
 
 /**
- * @brief Sets the callback function for cursor enter/leave events.
+ * @brief Sets the callback function for cursor locaton events.
  *
  * This function sets the user-defined callback function that will be
- * called when the cursor enters or leaves the specified window.
+ * called when the cursor changes location on the specified window.
  *
  * @param window The window to set the callback for.
- * @param callback The function pointer to the cursor enter/leave callback function.
+ * @param callback The function pointer to the cursor location callback function.
  * If NULL, the current callback will be unset.
  *
- * @sa emCursorEnterCallback
+ * @sa emCursorLocationCallback
  */
-void emSetCursorEnterCallback(EMBERWindow* window, emCursorEnterCallback callback);
+void emSetCursorLocationCallback(EMBERWindow* window, emCursorLocationCallback callback);
 
 /**
  * @brief Sets the callback function for mouse button events.
