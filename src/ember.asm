@@ -19,6 +19,7 @@ bits 32
 %define WM_MBUTTONDOWN  0x0207
 %define WM_MBUTTONUP    0x0208
 %define WM_MOUSEWHEEL   0x020A
+%define WM_MOUSEHWHEEL  0x020E
 %define WM_SIZE         0x0005
 %define WM_SETCURSOR    0x0020
 %define PM_REMOVE 0x0001
@@ -711,7 +712,9 @@ _WndProc:
     CMP DWORD [EBP + 12], WM_MBUTTONUP
     JE .handle_mbutton_up
     CMP DWORD [EBP + 12], WM_MOUSEWHEEL
-    JE .handle_mousewheel
+    JE .handle_mousewheel_vertical
+    CMP DWORD [EBP + 12], WM_MOUSEHWHEEL
+    JE .handle_mousewheel_horizontal
     CMP DWORD [EBP + 12], WM_SIZE
     JE .handle_resize
     CMP DWORD [EBP + 12], WM_SETCURSOR
@@ -935,7 +938,40 @@ _WndProc:
     ADD ESP, 4
     XOR EAX, EAX
     JMP .wndproc_end
-.handle_mousewheel:
+.handle_mousewheel_vertical:
+    MOV EAX, [EBX + EMBERWindow.scroll_callback]
+    CMP EAX, NULL
+    JE .default_proc
+
+    MOV AX, WORD [EBP + 16 + 2]
+    CWDE
+    MOV ECX, EAX
+
+    MOV EDX, 0
+
+    JMP .call_wheel_callback
+.handle_mousewheel_horizontal:
+    MOV EAX, [EBX + EMBERWindow.scroll_callback]
+    CMP EAX, NULL
+    JE .default_proc
+
+    MOV AX, WORD [EBP + 16 + 2]
+    CWDE
+    MOV EDX, EAX
+
+    MOV ECX, 0
+
+    JMP .call_wheel_callback
+.call_wheel_callback:
+    MOV EAX, [EBX + EMBERWindow.scroll_callback]
+
+    PUSH ECX
+    PUSH EDX
+    PUSH EBX
+    CALL EAX
+
+    XOR EAX, EAX
+    JMP .wndproc_end
 .handle_resize:
 .handle_set_cursor:
 .wndproc_end:

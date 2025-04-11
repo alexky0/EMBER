@@ -16,14 +16,9 @@ static void cursor_enter_callback(EMBERWindow* window, int entered)
         printf("Cursor left window\n");
 }
 
-static void mouse_button_callback(EMBERWindow* window, int button, int action, int mods)
+static void scroll_callback(EMBERWindow* window, int xoffset, int yoffset)
 {
-    printf("Mouse Button: %d, Action: %d, Mods: %d\n", button, action, mods);
-}
-
-static void scroll_callback(EMBERWindow* window, double xoffset, double yoffset)
-{
-    printf("Scroll Offset: X = %f, Y = %f\n", xoffset, yoffset);
+    printf("Scroll Offset: X = %d, Y = %d\n", xoffset, yoffset);
 }
 
 static void window_size_callback(EMBERWindow* window, int width, int height)
@@ -69,7 +64,6 @@ int main() {
 
     emSetKeyCallback(window, key_callback);
     emSetCursorEnterCallback(window, cursor_enter_callback);
-    emSetMouseButtonCallback(window, mouse_button_callback);
     emSetScrollCallback(window, scroll_callback);
     emSetResizeCallback(window, window_size_callback);
 

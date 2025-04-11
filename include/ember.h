@@ -105,7 +105,7 @@ typedef void (*emMouseButtonCallback)(EMBERWindow*, int, int, int);
  * @param xoffset The amount of horizontal scrolling.
  * @param yoffset The amount of vertical scrolling.
  */
-typedef void (*emScrollCallback)(EMBERWindow*, double, double);
+typedef void (*emScrollCallback)(EMBERWindow*, int, int);
 
 /**
  * @brief Function pointer type for window resize callbacks.
