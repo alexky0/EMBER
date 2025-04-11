@@ -722,27 +722,27 @@ _WndProc:
     PUSH VK_SHIFT
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
-    JZ .check_ctrl
+    JZ .check_ctrl_down
     OR DWORD [ESP], EMBER_MOD_SHIFT
-.check_ctrl:
+.check_ctrl_down:
     PUSH VK_CONTROL
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
-    JZ .check_alt
+    JZ .check_alt_down
     OR DWORD [ESP], EMBER_MOD_CONTROL
-.check_alt:
+.check_alt_down:
     PUSH VK_MENU
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
-    JZ .check_super
+    JZ .check_left_super_down
     OR DWORD [ESP], EMBER_MOD_MENU
-.check_super:
+.check_left_super_down:
     PUSH VK_LWIN
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
-    JZ .check_right_super
+    JZ .check_right_super_down
     OR DWORD [ESP], EMBER_MOD_SUPER
-.check_right_super:
+.check_right_super_down:
     PUSH VK_RWIN
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
@@ -790,9 +790,9 @@ _WndProc:
     PUSH VK_MENU
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
-    JZ .check_super_up
+    JZ .check_left_super_up
     OR DWORD [ESP], EMBER_MOD_MENU
-.check_super_up:
+.check_left_super_up:
     PUSH VK_LWIN
     CALL _GetAsyncKeyState@4
     TEST AX, 0x8000
