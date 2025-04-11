@@ -52,8 +52,11 @@ bits 32
 %define EMBER_MOD_CONTROL 0x0002
 %define EMBER_MOD_MENU 0x0004
 %define EMBER_MOD_SUPER 0x0008
-%define EMBER_KEY_PRESSED 1
-%define EMBER_KEY_RELEASED 0
+%define EMBER_MOUSE_BUTTON_LEFT 0
+%define EMBER_MOUSE_BUTTON_RIGHT 1
+%define EMBER_MOUSE_BUTTON_MIDDLE 2
+%define EMBER_PRESS 1
+%define EMBER_RELEASE 0
 %define EMBER_WINDOW_SIZE 256 + 4 * 10
 %define EMBER_MIN_KEY_CODE 0
 %define EMBER_MAX_KEY_CODE 255
@@ -690,6 +693,26 @@ _WndProc:
     JE .handle_keydown
     CMP DWORD [EBP + 12], WM_KEYUP
     JE .handle_keyup
+    CMP DWORD [EBP + 12], WM_MOUSEMOVE
+    JE .handle_mousemove
+    CMP DWORD [EBP + 12], WM_LBUTTONDOWN
+    JE .handle_lbutton_down
+    CMP DWORD [EBP + 12], WM_LBUTTONUP
+    JE .handle_lbutton_up
+    CMP DWORD [EBP + 12], WM_RBUTTONDOWN
+    JE .handle_rbutton_down
+    CMP DWORD [EBP + 12], WM_RBUTTONUP
+    JE .handle_rbutton_up
+    CMP DWORD [EBP + 12], WM_MBUTTONDOWN
+    JE .handle_mbutton_down
+    CMP DWORD [EBP + 12], WM_MBUTTONUP
+    JE .handle_mbutton_up
+    CMP DWORD [EBP + 12], WM_MOUSEWHEEL
+    JE .handle_mousewheel
+    CMP DWORD [EBP + 12], WM_SIZE
+    JE .handle_resize
+    CMP DWORD [EBP + 12], WM_SETCURSOR
+    JE .handle_set_cursor
 .default_proc:
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
@@ -714,7 +737,7 @@ _WndProc:
     MOV ESI, EBX
     ADD ESI, EMBERWindow.keys
     ADD ESI, DWORD [EBP + 16]
-    MOV BYTE [ESI], EMBER_KEY_PRESSED
+    MOV BYTE [ESI], EMBER_PRESS
 
     SUB ESP, 4
     MOV DWORD [ESP], NULL
@@ -754,7 +777,7 @@ _WndProc:
     JE .no_key_callback
 
     PUSH DWORD [ESP]
-    PUSH EMBER_KEY_PRESSED
+    PUSH EMBER_PRESS
     PUSH NULL
     PUSH DWORD [EBP + 16]
     PUSH EBX
@@ -770,7 +793,7 @@ _WndProc:
     MOV ESI, EBX
     ADD ESI, EMBERWindow.keys
     ADD ESI, DWORD [EBP + 16]
-    MOV BYTE [ESI], EMBER_KEY_RELEASED
+    MOV BYTE [ESI], EMBER_RELEASE
 
     SUB ESP, 4
     MOV DWORD [ESP], NULL
@@ -809,7 +832,7 @@ _WndProc:
     CMP EAX, NULL
     JE .no_key_callback_up
     PUSH DWORD [ESP]
-    PUSH EMBER_KEY_RELEASED
+    PUSH EMBER_RELEASE
     PUSH NULL
     PUSH DWORD [EBP + 16]
     PUSH EBX
@@ -817,6 +840,30 @@ _WndProc:
 .no_key_callback_up:
     ADD ESP, 4
     XOR EAX, EAX
+    JMP .wndproc_end
+.handle_mousemove:
+    MOV EAX, [EBX + EMBERWindow.cursor_pos_callback]
+    CMP EAX, NULL
+    JE .default_proc
+    MOV ECX, [EBP + 20]
+    MOVZX EDX, WORD CX
+    SAR ECX, 16
+    PUSH ECX
+    PUSH EDX
+    PUSH EBX
+    CALL EAX
+    XOR EAX, EAX
+    JMP .wndproc_end
+.mouse_button:
+.handle_lbutton_down:
+.handle_lbutton_up:
+.handle_rbutton_down:
+.handle_rbutton_up:
+.handle_mbutton_down:
+.handle_mbutton_up:
+.handle_mousewheel:
+.handle_resize:
+.handle_set_cursor:
 .wndproc_end:
     MOV ESP, EBP
     POP EBP

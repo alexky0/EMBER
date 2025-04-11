@@ -61,7 +61,7 @@ typedef void (*emKeyCallback)(EMBERWindow*, int, int, int, int);
  * @param xpos The new x-coordinate of the cursor, relative to the left edge of the window.
  * @param ypos The new y-coordinate of the cursor, relative to the top edge of the window.
  */
-typedef void (*emCursorPosCallback)(EMBERWindow*, double, double);
+typedef void (*emCursorPosCallback)(EMBERWindow*, int, int);
 
 /**
  * @brief Function pointer type for cursor enter/leave callbacks.
