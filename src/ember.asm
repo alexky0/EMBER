@@ -88,6 +88,9 @@ struc EMBERWindow
     .resize_callback RESB 4
 endstruc
 
+var1 RESB 4
+var2 RESB 4
+
 section .text
 
 extern _GetModuleHandleA@4
@@ -882,11 +885,54 @@ _WndProc:
     MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
     CMP EAX, NULL
     JE .default_proc
-    PUSH 0
+
+    SUB ESP, 4
+    MOV DWORD [ESP], NULL
+
+    MOV DWORD [var1], ECX
+    MOV DWORD [var2], EDX
+
+    PUSH VK_SHIFT
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_ctrl_mouse
+    OR DWORD [ESP], EMBER_MOD_SHIFT
+.check_ctrl_mouse:
+    PUSH VK_CONTROL
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_alt_mouse
+    OR DWORD [ESP], EMBER_MOD_CONTROL
+.check_alt_mouse:
+    PUSH VK_MENU
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_left_super_mouse
+    OR DWORD [ESP], EMBER_MOD_MENU
+.check_left_super_mouse:
+    PUSH VK_LWIN
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_right_super_mouse
+    OR DWORD [ESP], EMBER_MOD_SUPER
+.check_right_super_mouse:
+    PUSH VK_RWIN
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .call_mouse_callback
+    OR DWORD [ESP], EMBER_MOD_SUPER
+.call_mouse_callback:
+    MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
+
+    MOV DWORD ECX, [var1]
+    MOV DWORD EDX, [var2]
+
+    PUSH DWORD [ESP]
     PUSH EDX
     PUSH ECX
     PUSH EBX
     CALL EAX
+    ADD ESP, 4
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_mousewheel:
