@@ -108,6 +108,7 @@ extern _PostQuitMessage@4
 extern _TranslateMessage@4
 extern _DispatchMessageA@4
 extern _PeekMessageA@20
+extern _Sleep@4
 extern _wglMakeCurrent@8
 extern _GetDC@4
 extern _wglCreateContext@4
@@ -152,25 +153,29 @@ _emInit:
     PUSH NULL
     CALL _GetModuleHandleA@4
     MOV [hInstance], EAX
+    MOV EDI, [hInstance]
+
+    PUSH IDC_ARROW
+    PUSH NULL
+    CALL _LoadCursorA@8
+    MOV EDX, EAX
 
     SUB ESP, CLASS_SIZE
     MOV EBX, ESP
+
     MOV DWORD [EBX + 4 * 0], CLASS_SIZE
     MOV DWORD [EBX + 4 * 1], CS_HREDRAW | CS_VREDRAW
     MOV DWORD [EBX + 4 * 2], _WndProc
     MOV DWORD [EBX + 4 * 3], NULL
     MOV DWORD [EBX + 4 * 4], NULL
-    MOV DWORD EAX, [hInstance]
-    MOV DWORD [EBX + 4 * 5], EAX
+    MOV DWORD [EBX + 4 * 5], EDI
     MOV DWORD [EBX + 4 * 6], NULL
-    PUSH IDC_ARROW
-    PUSH NULL
-    CALL _LoadCursorA@8
-    MOV DWORD [EBX + 4 * 7], EAX
+    MOV DWORD [EBX + 4 * 7], EDX
     MOV DWORD [EBX + 4 * 8], COLOR_WINDOW + 1
     MOV DWORD [EBX + 4 * 9], NULL
     MOV DWORD [EBX + 4 * 10], ClassName
     MOV DWORD [EBX + 4 * 11], NULL
+
     PUSH EBX
     CALL _RegisterClassExA@4
 
@@ -181,16 +186,14 @@ _emInit:
 
     MOV EAX, EMBER_SUCCESS
 
-    MOV ESP, EBP
-    POP EBP
-    RET
+    JMP .init_end
 .init_fail:
     PUSH DWORD [hInstance]
     PUSH ClassName 
     CALL _UnregisterClassA@8
 
     MOV EAX, EMBER_FAIL
-
+.init_end:
     MOV ESP, EBP
     POP EBP
     RET
@@ -365,6 +368,7 @@ _emCreateWindow:
 
     SUB ESP, EMBER_CONTEXT_ATTRIBS_SIZE
     MOV EBX, ESP
+
     MOV DWORD [EBX + 0], WGL_CONTEXT_MAJOR_VERSION_ARB
     MOV EAX, [globalMajorVersion]
     MOV DWORD [EBX + 4], EAX
@@ -397,9 +401,7 @@ _emCreateWindow:
     MOV [EDI + EMBERWindow.hglrc], EBX
     
     MOV EAX, EDI
-    MOV ESP, EBP
-    POP EBP
-    RET
+    JMP .create_end
 .use_legacy_context:
     MOV [EDI + EMBERWindow.hglrc], ECX
     
@@ -419,6 +421,7 @@ _emCreateWindow:
     ADD ESP, 4
 
     XOR EAX, EAX
+.create_end:
     MOV ESP, EBP
     POP EBP
     RET
@@ -457,12 +460,10 @@ _emShouldClose:
 
     MOV EAX, EMBER_SHOULD_NOT_QUIT
 
-    MOV ESP, EBP
-    POP EBP
-    RET
+    JMP .close_end
 .quit:
     MOV EAX, EMBER_SHOULD_QUIT
-
+.close_end:
     MOV ESP, EBP
     POP EBP
     RET
@@ -495,7 +496,7 @@ _emPollEvents:
     CALL _PeekMessageA@20
     
     TEST EAX, EAX
-    JZ .no_message
+    JZ .message_end
     
     PUSH EBX
     CALL _TranslateMessage@4
@@ -504,7 +505,10 @@ _emPollEvents:
     CALL _DispatchMessageA@4
     
     JMP .message_loop
-.no_message:
+.message_end:
+    PUSH 5
+    CALL _Sleep@4
+
     MOV ESP, EBP
     POP EBP
     RET
@@ -514,6 +518,7 @@ _emMakeContext:
     MOV EBP, ESP
 
     MOV EBX, [EBP + 8]
+
     PUSH DWORD [EBX + EMBERWindow.hglrc]
     PUSH DWORD [EBX + EMBERWindow.hdc]
     CALL _wglMakeCurrent@8
@@ -523,12 +528,10 @@ _emMakeContext:
 
     MOV EAX, EMBER_SUCCESS
 
-    MOV ESP, EBP
-    POP EBP
-    RET
+    JMP .context_end
 .context_fail:
     MOV EAX, EMBER_FAIL
-
+.context_end:
     MOV ESP, EBP
     POP EBP
     RET
@@ -538,6 +541,7 @@ _emSwapBuffers:
     MOV  EBP, ESP
 
     MOV EBX, [EBP + 8]
+    
     PUSH DWORD [EBX + EMBERWindow.hdc]
     CALL _SwapBuffers@4
 
@@ -552,7 +556,7 @@ _emGetProc:
     PUSH DWORD [EBP + 8]
     CALL _wglGetProcAddress@4
     TEST EAX, EAX
-    JNZ .proc_found
+    JNZ .proc_end
     
     PUSH opengl32
     CALL _LoadLibraryA@4
@@ -563,11 +567,10 @@ _emGetProc:
     PUSH EAX
     CALL _GetProcAddress@8
 .proc_found:
-    MOV ESP, EBP
-    POP EBP
-    RET
+    JMP .proc_end
 .proc_fail:
     XOR EAX, EAX
+.proc_end:
     MOV ESP, EBP
     POP EBP
     RET
@@ -679,11 +682,6 @@ _WndProc:
     PUSH EBP
     MOV EBP, ESP
 
-    PUSH DWORD [EBP + 8]
-    CALL _GetDC@4
-    TEST EAX, EAX
-    JZ .default_proc
-
     PUSH GWLP_USERDATA
     PUSH DWORD [EBP + 8]
     CALL _GetWindowLongA@8
@@ -691,34 +689,36 @@ _WndProc:
     TEST EBX, EBX
     JZ .default_proc
 
-    CMP DWORD [EBP + 12], WM_CLOSE
-    JE .handle_close
-    CMP DWORD [EBP + 12], WM_KEYDOWN
-    JE .handle_keydown
-    CMP DWORD [EBP + 12], WM_KEYUP
-    JE .handle_keyup
-    CMP DWORD [EBP + 12], WM_MOUSEMOVE
+    MOV EDX, DWORD [EBP + 12]
+
+    CMP EDX, WM_MOUSEMOVE
     JE .handle_mousemove
-    CMP DWORD [EBP + 12], WM_SETCURSOR
+    CMP EDX, WM_KEYDOWN
+    JE .handle_keydown
+    CMP EDX, WM_KEYUP
+    JE .handle_keyup
+    CMP EDX, WM_SETCURSOR
     JE .handle_setcursor
-    CMP DWORD [EBP + 12], WM_LBUTTONDOWN
+    CMP EDX, WM_LBUTTONDOWN
     JE .handle_lbutton_down
-    CMP DWORD [EBP + 12], WM_LBUTTONUP
+    CMP EDX, WM_LBUTTONUP
     JE .handle_lbutton_up
-    CMP DWORD [EBP + 12], WM_RBUTTONDOWN
+    CMP EDX, WM_RBUTTONDOWN
     JE .handle_rbutton_down
-    CMP DWORD [EBP + 12], WM_RBUTTONUP
+    CMP EDX, WM_RBUTTONUP
     JE .handle_rbutton_up
-    CMP DWORD [EBP + 12], WM_MBUTTONDOWN
+    CMP EDX, WM_MBUTTONDOWN
     JE .handle_mbutton_down
-    CMP DWORD [EBP + 12], WM_MBUTTONUP
+    CMP EDX, WM_MBUTTONUP
     JE .handle_mbutton_up
-    CMP DWORD [EBP + 12], WM_MOUSEWHEEL
+    CMP EDX, WM_MOUSEWHEEL
     JE .handle_mousewheel_vertical
-    CMP DWORD [EBP + 12], WM_MOUSEHWHEEL
+    CMP EDX, WM_MOUSEHWHEEL
     JE .handle_mousewheel_horizontal
-    CMP DWORD [EBP + 12], WM_SIZE
+    CMP EDX, WM_SIZE
     JE .handle_resize
+    CMP EDX, WM_CLOSE
+    JE .handle_close
 .default_proc:
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
@@ -728,6 +728,7 @@ _WndProc:
     JMP .wndproc_end
 .handle_close:
     MOV DWORD [EBX + EMBERWindow.quit], EMBER_SHOULD_QUIT
+    
     PUSH 0
     CALL _PostQuitMessage@4
 
@@ -851,13 +852,16 @@ _WndProc:
     MOV EAX, [EBX + EMBERWindow.cursor_pos_callback]
     CMP EAX, NULL
     JE .default_proc
+
     MOV ECX, [EBP + 20]
     MOVZX EDX, WORD CX
     SAR ECX, 16
+
     PUSH ECX
     PUSH EDX
     PUSH EBX
     CALL EAX
+    
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_setcursor:
