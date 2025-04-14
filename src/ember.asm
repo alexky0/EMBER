@@ -780,7 +780,7 @@ _WndProc:
     OR DWORD [ESP], EMBER_MOD_SUPER
 .call_key_callback:
     MOV EAX, [EBX + EMBERWindow.key_callback]
-    CMP EAX, NULL
+    TEST EAX, EAX
     JE .no_key_callback
 
     PUSH DWORD [ESP]
@@ -792,7 +792,7 @@ _WndProc:
 .no_key_callback:
     ADD ESP, 4
     XOR EAX, EAX
-    JMP .wndproc_end
+    JMP .default_proc
 .handle_keyup:
     CMP DWORD [EBP + 16], EMBER_MAX_KEY_CODE
     JA .default_proc
@@ -850,12 +850,12 @@ _WndProc:
     JMP .wndproc_end
 .handle_mousemove:
     MOV EAX, [EBX + EMBERWindow.cursor_pos_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
 
     MOV ECX, [EBP + 20]
     MOVZX EDX, WORD CX
-    SAR ECX, 16
+    SHR ECX, 16
 
     PUSH ECX
     PUSH EDX
@@ -866,17 +866,16 @@ _WndProc:
     JMP .wndproc_end
 .handle_setcursor:
     MOV EAX, [EBX + EMBERWindow.cursor_location_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
     
-    MOV ECX, [EBP + 20]
-    AND ECX, 0xFFFF
+    MOVZX ECX, WORD [EBP + 20]
     
     PUSH ECX
     PUSH EBX
     CALL EAX
     
-    MOV EAX, 1
+    XOR EAX, EAX
     JMP .wndproc_end
 .handle_lbutton_down:
     MOV ECX, EMBER_MOUSE_BUTTON_LEFT
@@ -904,8 +903,8 @@ _WndProc:
     JMP .mouse_button
 .mouse_button:
     MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
 
     SUB ESP, 4
     MOV DWORD [ESP], NULL
@@ -958,31 +957,23 @@ _WndProc:
     JMP .wndproc_end
 .handle_mousewheel_vertical:
     MOV EAX, [EBX + EMBERWindow.scroll_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
 
-    MOV AX, WORD [EBP + 16 + 2]
-    CWDE
-    MOV ECX, EAX
-
-    MOV EDX, 0
+    MOVSX ECX, WORD [EBP + 16 + 2]
+    XOR EDX, EDX
 
     JMP .call_wheel_callback
 .handle_mousewheel_horizontal:
     MOV EAX, [EBX + EMBERWindow.scroll_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
 
-    MOV AX, WORD [EBP + 16 + 2]
-    CWDE
-    MOV EDX, EAX
-
-    MOV ECX, 0
+    MOVSX EDX, WORD [EBP + 16 + 2]
+    XOR ECX, ECX
 
     JMP .call_wheel_callback
 .call_wheel_callback:
-    MOV EAX, [EBX + EMBERWindow.scroll_callback]
-
     PUSH ECX
     PUSH EDX
     PUSH EBX
@@ -992,8 +983,8 @@ _WndProc:
     JMP .wndproc_end
 .handle_resize:
     MOV EAX, [EBX + EMBERWindow.resize_callback]
-    CMP EAX, NULL
-    JE .default_proc
+    TEST EAX, EAX
+    JZ .default_proc
 
     MOV ECX, [EBP + 20]
     MOV EDX, ECX
