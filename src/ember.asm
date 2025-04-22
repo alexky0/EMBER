@@ -7,10 +7,13 @@ bits 32
 %define COLOR_WINDOW 5
 %define WS_OVERLAPPEDWINDOW 0x00CF0000
 %define WS_VISIBLE 0x10000000
+%define WS_SYSMENU 0x00080000
 %define SW_NORMAL 1
 %define WM_CLOSE        0x0010
 %define WM_KEYDOWN      0x0100
 %define WM_KEYUP        0x0101
+%define WM_SYSKEYDOWN   0x0104
+%define WM_SYSKEYUP     0x0105
 %define WM_MOUSEMOVE    0x0200
 %define WM_LBUTTONDOWN  0x0201
 %define WM_LBUTTONUP    0x0202
@@ -22,6 +25,7 @@ bits 32
 %define WM_MOUSEHWHEEL  0x020E
 %define WM_SIZE         0x0005
 %define WM_SETCURSOR    0x0020
+%define WM_SYSCOMMAND   0x0112
 %define PM_REMOVE 0x0001
 %define PFD_DRAW_TO_WINDOW 0x00000004
 %define PFD_SUPPORT_OPENGL 0x00000020
@@ -60,7 +64,7 @@ bits 32
 %define EMBER_RELEASE 0
 %define EMBER_WINDOW_SIZE 256 + 4 * 10
 %define EMBER_MIN_KEY_CODE 0
-%define EMBER_MAX_KEY_CODE 255
+%define EMBER_MAX_KEY_CODE 256
 %define EMBER_PIXELFORMAT_STRUCT_SIZE 40
 %define EMBER_CONTEXT_ATTRIBS_SIZE 28
 
@@ -88,9 +92,6 @@ struc EMBERWindow
     .scroll_callback RESB 4
     .resize_callback RESB 4
 endstruc
-
-var1 RESB 4
-var2 RESB 4
 
 section .text
 
@@ -277,7 +278,7 @@ _emCreateWindow:
     PUSH DWORD [EBP + 12]
     PUSH 100
     PUSH 100
-    PUSH WS_OVERLAPPEDWINDOW | WS_VISIBLE
+    PUSH WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU
     PUSH DWORD [EBP + 8]
     PUSH ClassName
     PUSH NULL
@@ -678,6 +679,48 @@ _emSetResizeCallback:
     POP EBP
     RET
 
+_CheckModifiers:
+    PUSH EBP
+    MOV EBP, ESP
+
+    XOR ESI, ESI
+
+    PUSH VK_SHIFT
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_ctrl
+    OR ESI, EMBER_MOD_SHIFT
+.check_ctrl:
+    PUSH VK_CONTROL
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_alt
+    OR ESI, EMBER_MOD_CONTROL
+.check_alt:
+    PUSH VK_MENU
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_left_super
+    OR ESI, EMBER_MOD_MENU
+.check_left_super:
+    PUSH VK_LWIN
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_right_super
+    OR ESI, EMBER_MOD_SUPER
+.check_right_super:
+    PUSH VK_RWIN
+    CALL _GetAsyncKeyState@4
+    TEST AX, 0x8000
+    JZ .check_modifiers_end
+    OR ESI, EMBER_MOD_SUPER
+.check_modifiers_end:
+    MOV EAX, ESI
+
+    MOV ESP, EBP
+    POP EBP
+    RET
+
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
@@ -715,10 +758,16 @@ _WndProc:
     JE .handle_mousewheel_vertical
     CMP EDX, WM_MOUSEHWHEEL
     JE .handle_mousewheel_horizontal
+    CMP EDX, WM_SYSKEYDOWN
+    JE .handle_syskeydown
+    CMP EDX, WM_SYSKEYUP
+    JE .handle_syskeyup
     CMP EDX, WM_SIZE
     JE .handle_resize
     CMP EDX, WM_CLOSE
     JE .handle_close
+    CMP EDX, WM_SYSCOMMAND
+    JE .handle_syscommand
 .default_proc:
     PUSH DWORD [EBP + 20]
     PUSH DWORD [EBP + 16]
@@ -746,51 +795,20 @@ _WndProc:
     ADD ESI, DWORD [EBP + 16]
     MOV BYTE [ESI], EMBER_PRESS
 
-    SUB ESP, 4
-    MOV DWORD [ESP], NULL
+    MOV EDI, [EBX + EMBERWindow.key_callback]
+    TEST EDI, EDI
+    JZ .no_key_callback
 
-    PUSH VK_SHIFT
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_ctrl_down
-    OR DWORD [ESP], EMBER_MOD_SHIFT
-.check_ctrl_down:
-    PUSH VK_CONTROL
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_alt_down
-    OR DWORD [ESP], EMBER_MOD_CONTROL
-.check_alt_down:
-    PUSH VK_MENU
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_left_super_down
-    OR DWORD [ESP], EMBER_MOD_MENU
-.check_left_super_down:
-    PUSH VK_LWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_right_super_down
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.check_right_super_down:
-    PUSH VK_RWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .call_key_callback
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.call_key_callback:
-    MOV EAX, [EBX + EMBERWindow.key_callback]
-    TEST EAX, EAX
-    JE .no_key_callback
+    CALL _CheckModifiers
 
-    PUSH DWORD [ESP]
+    PUSH EAX
     PUSH EMBER_PRESS
     PUSH NULL
     PUSH DWORD [EBP + 16]
     PUSH EBX
-    CALL EAX
+    CALL EDI
+    ADD ESP, 20
 .no_key_callback:
-    ADD ESP, 4
     XOR EAX, EAX
     JMP .default_proc
 .handle_keyup:
@@ -802,50 +820,20 @@ _WndProc:
     ADD ESI, DWORD [EBP + 16]
     MOV BYTE [ESI], EMBER_RELEASE
 
-    SUB ESP, 4
-    MOV DWORD [ESP], NULL
+    MOV EDI, [EBX + EMBERWindow.key_callback]
+    TEST EDI, EDI
+    JZ .no_key_callback_up
 
-    PUSH VK_SHIFT
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_ctrl_up
-    OR DWORD [ESP], EMBER_MOD_SHIFT
-.check_ctrl_up:
-    PUSH VK_CONTROL
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_alt_up
-    OR DWORD [ESP], EMBER_MOD_CONTROL
-.check_alt_up:
-    PUSH VK_MENU
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_left_super_up
-    OR DWORD [ESP], EMBER_MOD_MENU
-.check_left_super_up:
-    PUSH VK_LWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_right_super_up
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.check_right_super_up:
-    PUSH VK_RWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .call_key_callback_up
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.call_key_callback_up:
-    MOV EAX, [EBX + EMBERWindow.key_callback]
-    CMP EAX, NULL
-    JE .no_key_callback_up
-    PUSH DWORD [ESP]
+    CALL _CheckModifiers
+
+    PUSH EAX
     PUSH EMBER_RELEASE
     PUSH NULL
     PUSH DWORD [EBP + 16]
     PUSH EBX
-    CALL EAX
+    CALL EDI
+    ADD ESP, 20
 .no_key_callback_up:
-    ADD ESP, 4
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_mousemove:
@@ -861,6 +849,7 @@ _WndProc:
     PUSH EDX
     PUSH EBX
     CALL EAX
+    ADD ESP, 12
     
     XOR EAX, EAX
     JMP .wndproc_end
@@ -874,7 +863,8 @@ _WndProc:
     PUSH ECX
     PUSH EBX
     CALL EAX
-    
+    ADD ESP, 12
+
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_lbutton_down:
@@ -900,59 +890,24 @@ _WndProc:
 .handle_mbutton_up:
     MOV ECX, EMBER_MOUSE_BUTTON_MIDDLE
     MOV EDX, EMBER_RELEASE
-    JMP .mouse_button
 .mouse_button:
-    MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
-    TEST EAX, EAX
+    MOV EDI, [EBX + EMBERWindow.mouse_button_callback]
+    TEST EDI, EDI
     JZ .default_proc
 
-    SUB ESP, 4
-    MOV DWORD [ESP], NULL
+    PUSH ECX
+    PUSH EDX
+    CALL _CheckModifiers
+    POP EDX
+    POP ECX
 
-    MOV DWORD [var1], ECX
-    MOV DWORD [var2], EDX
-
-    PUSH VK_SHIFT
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_ctrl_mouse
-    OR DWORD [ESP], EMBER_MOD_SHIFT
-.check_ctrl_mouse:
-    PUSH VK_CONTROL
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_alt_mouse
-    OR DWORD [ESP], EMBER_MOD_CONTROL
-.check_alt_mouse:
-    PUSH VK_MENU
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_left_super_mouse
-    OR DWORD [ESP], EMBER_MOD_MENU
-.check_left_super_mouse:
-    PUSH VK_LWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .check_right_super_mouse
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.check_right_super_mouse:
-    PUSH VK_RWIN
-    CALL _GetAsyncKeyState@4
-    TEST AX, 0x8000
-    JZ .call_mouse_callback
-    OR DWORD [ESP], EMBER_MOD_SUPER
-.call_mouse_callback:
-    MOV EAX, [EBX + EMBERWindow.mouse_button_callback]
-
-    MOV DWORD ECX, [var1]
-    MOV DWORD EDX, [var2]
-
-    PUSH DWORD [ESP]
+    PUSH EAX
     PUSH EDX
     PUSH ECX
     PUSH EBX
-    CALL EAX
-    ADD ESP, 4
+    CALL EDI
+    ADD ESP, 16
+
     XOR EAX, EAX
     JMP .wndproc_end
 .handle_mousewheel_vertical:
@@ -971,13 +926,12 @@ _WndProc:
 
     MOVSX EDX, WORD [EBP + 16 + 2]
     XOR ECX, ECX
-
-    JMP .call_wheel_callback
 .call_wheel_callback:
     PUSH ECX
     PUSH EDX
     PUSH EBX
     CALL EAX
+    ADD ESP, 12
 
     XOR EAX, EAX
     JMP .wndproc_end
@@ -995,7 +949,69 @@ _WndProc:
     PUSH EDX
     PUSH EBX
     CALL EAX
+    ADD ESP, 12
 
+    XOR EAX, EAX
+    JMP .wndproc_end
+.handle_syscommand:
+    MOV EAX, [EBP + 16]
+    AND EAX, 0xFFF0
+    
+    CMP EAX, 0xF100
+    JE .block_alt_menu
+    
+    JMP .default_proc
+.block_alt_menu:
+    XOR EAX, EAX
+    JMP .wndproc_end
+.handle_syskeydown:
+    CMP DWORD [EBP + 16], EMBER_MAX_KEY_CODE
+    JA .default_proc
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16]
+    MOV BYTE [ESI], EMBER_PRESS
+
+    MOV EDI, [EBX + EMBERWindow.key_callback]
+    TEST EDI, EDI
+    JZ .no_syskey_callback_down
+
+    CALL _CheckModifiers
+
+    PUSH EAX
+    PUSH EMBER_PRESS
+    PUSH NULL
+    PUSH DWORD [EBP + 16]
+    PUSH EBX
+    CALL EDI
+    ADD ESP, 20
+.no_syskey_callback_down:
+    XOR EAX, EAX
+    JMP .wndproc_end
+.handle_syskeyup:
+    CMP DWORD [EBP + 16], EMBER_MAX_KEY_CODE
+    JA .default_proc
+
+    MOV ESI, EBX
+    ADD ESI, EMBERWindow.keys
+    ADD ESI, DWORD [EBP + 16]
+    MOV BYTE [ESI], EMBER_RELEASE
+
+    MOV EDI, [EBX + EMBERWindow.key_callback]
+    TEST EDI, EDI
+    JZ .no_syskey_callback_up
+
+    CALL _CheckModifiers
+
+    PUSH EAX
+    PUSH EMBER_RELEASE
+    PUSH NULL
+    PUSH DWORD [EBP + 16]
+    PUSH EBX
+    CALL EDI
+    ADD ESP, 20
+.no_syskey_callback_up:
     XOR EAX, EAX
     JMP .wndproc_end
 .wndproc_end:
