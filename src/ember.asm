@@ -139,6 +139,7 @@ extern _QueryPerformanceFrequency@8
 extern _GetClientRect@8
 extern _MapWindowPoints@16
 extern _SetCursorPos@8
+extern _GetWindowRect@8
 
 extern _malloc
 extern _free
@@ -164,6 +165,7 @@ global _emSetResizeCallback
 global _emGetFormattedTime
 global _emSetSwapInterval
 global _emSetInputMode
+global _emGetFrameBufferSize
 
 _emInit:
     PUSH EBP
@@ -1300,6 +1302,41 @@ _emSetInputMode:
     MOV DWORD [EBX + EMBERWindow.cursor_mode], EMBER_CURSOR_DISABLED
     JMP .setinput_end
 .setinput_end:
+    POP ESI
+    POP EDI
+    POP EBX
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emGetFrameBufferSize:
+    PUSH EBP
+    MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
+
+    MOV EBX, [EBP + 8]
+    MOV EDI, [EBP + 12]
+    MOV ESI, [EBP + 16]
+
+    SUB ESP, 16
+
+    LEA EAX, [ESP]
+    PUSH EAX
+    PUSH DWORD [EBX + EMBERWindow.hwnd]
+    CALL _GetClientRect@8
+
+    MOV EAX, [ESP + 8]
+    SUB EAX, [ESP + 0]
+    MOV DWORD [EDI], EAX
+
+    MOV EAX, [ESP + 12]
+    SUB EAX, [ESP + 4]
+    MOV DWORD [ESI], EAX
+
+    ADD ESP, 16
+
     POP ESI
     POP EDI
     POP EBX

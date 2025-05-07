@@ -566,7 +566,19 @@ void emSetSwapInterval(int interval);
  *
  * @sa EMBER_CURSOR, EMBER_CURSOR_NORMAL, EMBER_CURSOR_HIDDEN, EMBER_CURSOR_DISABLED
  */
- void emSetInputMode(EMBERWindow* window, int mode, int value);
+void emSetInputMode(EMBERWindow* window, int mode, int value);
+
+/**
+ * @brief Retrieves the framebuffer size of a window.
+ *
+ * This function retrieves the width and height of the framebuffer
+ * associated with the specified window.
+ *
+ * @param window The window to query.
+ * @param width Pointer to an integer where the width will be stored.
+ * @param height Pointer to an integer where the height will be stored.
+ */
+void emGetFrameBufferSize(EMBERWindow* window, int* width, int* height);
 
 #ifdef __cplusplus
 }
