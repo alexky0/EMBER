@@ -18,6 +18,7 @@ typedef struct EMBERWindow_t {
     void* hglrc;         /* OpenGL rendering context handle */
     int quit;            /* Flag indicating whether the window should close */
     unsigned char keys[256]; /* Array of 256 key states */
+    int cursorMode;      /* Current cursor mode */
 
     /* Callback function pointers */
     void (*keyCallback)(struct EMBERWindow_t*, int, int, int, int);
@@ -295,6 +296,12 @@ typedef void (*emResizeCallback)(EMBERWindow*, int, int);
 #define EMBER_PRESS   1
 #define EMBER_RELEASE 0
 
+/* Input Mode Definitions */
+#define EMBER_CURSOR 0x0001
+#define EMBER_CURSOR_NORMAL 0x0001
+#define EMBER_CURSOR_HIDDEN 0x0002
+#define EMBER_CURSOR_DISABLED 0x0003
+
 /**
  * @brief Initializes the EMBER library.
  *
@@ -545,6 +552,21 @@ EMBERTime emGetFormattedTime();
  * @param interval The given amount of frames
  */
 void emSetSwapInterval(int interval);
+
+/**
+ * @brief Sets an input mode for the specified window.
+ *
+ * This function allows you to control various input settings for a window,
+ * such as cursor behavior (normal, hidden, disabled).
+ *
+ * @param window The window to set the input mode for.
+ * @param mode The input mode to set (e.g., EMBER_CURSOR).
+ * @param value The value for the specified mode (e.g., EMBER_CURSOR_NORMAL,
+ * EMBER_CURSOR_HIDDEN, EMBER_CURSOR_DISABLED).
+ *
+ * @sa EMBER_CURSOR, EMBER_CURSOR_NORMAL, EMBER_CURSOR_HIDDEN, EMBER_CURSOR_DISABLED
+ */
+ void emSetInputMode(EMBERWindow* window, int mode, int value);
 
 #ifdef __cplusplus
 }

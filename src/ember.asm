@@ -63,11 +63,15 @@ bits 32
 %define EMBER_MOUSE_BUTTON_MIDDLE 2
 %define EMBER_PRESS 1
 %define EMBER_RELEASE 0
-%define EMBER_WINDOW_SIZE 256 + 4 * 10
+%define EMBER_WINDOW_SIZE 256 + 4 * 11
 %define EMBER_MIN_KEY_CODE 0
 %define EMBER_MAX_KEY_CODE 256
 %define EMBER_PIXELFORMAT_STRUCT_SIZE 40
 %define EMBER_CONTEXT_ATTRIBS_SIZE 28
+%define EMBER_CURSOR 0x0001
+%define EMBER_CURSOR_NORMAL 0x0001
+%define EMBER_CURSOR_HIDDEN 0x0002
+%define EMBER_CURSOR_DISABLED 0x0003
 
 section .data
 ClassName DB "EmberClass", 0
@@ -87,6 +91,7 @@ struc EMBERWindow
     .hglrc RESB 4
     .quit RESB 4
     .keys RESB 256
+    .cursor_mode RESB 4
     .key_callback RESB 4
     .cursor_pos_callback RESB 4
     .cursor_location_callback RESB 4
@@ -99,6 +104,8 @@ section .text
 
 extern _GetModuleHandleA@4
 extern _LoadCursorA@8
+extern _ShowCursor@4
+extern _ClipCursor@4
 extern _RegisterClassExA@4
 extern _UnregisterClassA@8
 extern _CreateWindowExA@48
@@ -129,6 +136,9 @@ extern _GetAsyncKeyState@4
 extern _GetLocalTime@4
 extern _QueryPerformanceCounter@8
 extern _QueryPerformanceFrequency@8
+extern _GetClientRect@8
+extern _MapWindowPoints@16
+extern _SetCursorPos@8
 
 extern _malloc
 extern _free
@@ -153,6 +163,7 @@ global _emSetScrollCallback
 global _emSetResizeCallback
 global _emGetFormattedTime
 global _emSetSwapInterval
+global _emSetInputMode
 
 _emInit:
     PUSH EBP
@@ -1210,6 +1221,85 @@ _emSetSwapInterval:
     CALL EAX
     ADD ESP, 4
 .swap_end:
+    POP ESI
+    POP EDI
+    POP EBX
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetInputMode:
+    PUSH EBP
+    MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
+
+    MOV EBX, [EBP + 8]
+    MOV ECX, [EBP + 12]
+    MOV EDX, [EBP + 16]
+
+    CMP ECX, EMBER_CURSOR
+    JE .handle_cursor_mode
+
+    JMP .setinput_end
+.handle_cursor_mode:
+    CMP EDX, EMBER_CURSOR_NORMAL
+    JE .set_cursor_normal
+    CMP EDX, EMBER_CURSOR_HIDDEN
+    JE .set_cursor_hidden
+    CMP EDX, EMBER_CURSOR_DISABLED
+    JE .set_cursor_disabled
+    JMP .setinput_end
+.set_cursor_normal:
+    PUSH 1
+    CALL _ShowCursor@4
+    MOV DWORD [EBX + EMBERWindow.cursor_mode], EMBER_CURSOR_NORMAL
+    JMP .setinput_end
+.set_cursor_hidden:
+    PUSH 0
+    CALL _ShowCursor@4
+    MOV DWORD [EBX + EMBERWindow.cursor_mode], EMBER_CURSOR_HIDDEN
+    JMP .setinput_end
+.set_cursor_disabled:
+    PUSH 0
+    CALL _ShowCursor@4
+
+    SUB ESP, 16
+    MOV EDI, ESP
+
+    PUSH DWORD [EBX + EMBERWindow.hwnd]
+    PUSH EDI
+    CALL _GetClientRect@8
+
+    PUSH EDI
+    CALL _ClipCursor@4
+
+    ADD ESP, 8
+
+    SUB ESP, 8
+    MOV ESI, ESP
+
+    MOV EAX, DWORD [EDI + 8]
+    SUB EAX, DWORD [EDI + 0]
+    SHR EAX, 1
+    MOV DWORD [ESI + 0], EAX
+
+    MOV EAX, DWORD [EDI + 4]
+    SUB EAX, DWORD [EDI + 0]
+    SHR EAX, 1
+    MOV DWORD [ESI + 4], EAX
+
+    PUSH DWORD [EBX + EMBERWindow.hwnd]
+    PUSH DWORD [ESI + 4]
+    PUSH DWORD [ESI + 0]
+    CALL _SetCursorPos@8
+
+    ADD ESP, 8
+
+    MOV DWORD [EBX + EMBERWindow.cursor_mode], EMBER_CURSOR_DISABLED
+    JMP .setinput_end
+.setinput_end:
     POP ESI
     POP EDI
     POP EBX
