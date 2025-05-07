@@ -81,6 +81,8 @@ globalMajorVersion DD 1
 globalMinorVersion DD 0
 globalProfileMask DD WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB
 wglSwapIntervalEXT DB "wglSwapIntervalEXT", 0
+performanceFrequency DQ 0
+startTime DQ 0
 
 section .bss
 hInstance RESB 4
@@ -134,12 +136,13 @@ extern _GetProcAddress@8
 extern _LoadLibraryA@4
 extern _GetAsyncKeyState@4
 extern _GetLocalTime@4
-extern _QueryPerformanceCounter@8
-extern _QueryPerformanceFrequency@8
+extern _QueryPerformanceCounter@4
+extern _QueryPerformanceFrequency@4
 extern _GetClientRect@8
 extern _MapWindowPoints@16
 extern _SetCursorPos@8
 extern _GetWindowRect@8
+extern _timeGetTime@0
 
 extern _malloc
 extern _free
@@ -163,6 +166,7 @@ global _emSetMouseButtonCallback
 global _emSetScrollCallback
 global _emSetResizeCallback
 global _emGetFormattedTime
+global _emGetTime
 global _emSetSwapInterval
 global _emSetInputMode
 global _emGetFrameBufferSize
@@ -173,6 +177,16 @@ _emInit:
     PUSH EBX
     PUSH EDI
     PUSH ESI
+
+    PUSH startTime + 4
+    PUSH startTime
+    CALL _QueryPerformanceCounter@4
+    ADD ESP, 8
+
+    PUSH performanceFrequency + 4
+    PUSH performanceFrequency
+    CALL _QueryPerformanceFrequency@4
+    ADD ESP, 8
 
     PUSH NULL
     CALL _GetModuleHandleA@4
@@ -1195,6 +1209,22 @@ _emGetFormattedTime:
     ADD ESP, SYSTEMTIME_SIZE
 
     MOV EAX, ESI
+
+    POP ESI
+    POP EDI
+    POP EBX
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emGetTime:
+    PUSH EBP
+    MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
+
+    CALL _timeGetTime@0
 
     POP ESI
     POP EDI

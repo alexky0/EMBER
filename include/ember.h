@@ -544,6 +544,13 @@ void emSetResizeCallback(EMBERWindow* window, emResizeCallback callback);
 EMBERTime emGetFormattedTime();
 
 /**
+ * @brief Retrieves the current time.
+ *
+ * @return Returns a double of the time since Windows started.
+ */
+int emGetTime();
+
+/**
  * @brief Sets the interval between frame swaps.
  *
  * This function sets the amount of frames required to pass before
