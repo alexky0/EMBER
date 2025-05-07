@@ -4,27 +4,10 @@
 #include <ember.h>
 
 static void key_callback(EMBERWindow* window, int key, int scancode, int action, int mods) {
-    printf("Key Callback: key=%d, scancode=%d, action=%d, mods=%d\n", key, scancode, action, mods);
-}
-
-static void cursor_pos_callback(EMBERWindow* window, int xpos, int ypos) {
-    printf("Cursor Position Callback: xpos=%d, ypos=%d\n", xpos, ypos);
-}
-
-static void cursor_location_callback(EMBERWindow* window, int location) {
-    printf("Cursor Location Callback: location=%d\n", location);
-}
-
-static void mouse_button_callback(EMBERWindow* window, int button, int action, int mods) {
-    printf("Mouse Button Callback: button=%d, action=%d, mods=%d\n", button, action, mods);
-}
-
-static void scroll_callback(EMBERWindow* window, int xoffset, int yoffset) {
-    printf("Scroll Callback: xoffset=%d, yoffset=%d\n", xoffset, yoffset);
+    if (key == EMBER_KEY_ESCAPE && action == EMBER_KEY_PRESSED) emSetShouldClose(window);
 }
 
 static void resize_callback(EMBERWindow* window, int width, int height) {
-    printf("Resize Callback: width=%d, height=%d\n", width, height);
     glViewport(0, 0, width, height);
 }
 
@@ -56,10 +39,6 @@ int main() {
     }
 
     emSetKeyCallback(window, key_callback);
-    emSetCursorPosCallback(window, cursor_pos_callback);
-    emSetCursorLocationCallback(window, cursor_location_callback);
-    emSetMouseButtonCallback(window, mouse_button_callback);
-    emSetScrollCallback(window, scroll_callback);
     emSetResizeCallback(window, resize_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)emGetProc))
@@ -69,6 +48,8 @@ int main() {
         emTerminate();
         return -1;
     }
+
+    emSetSwapInterval(0);
 
     glViewport(0, 0, 600, 600);
     glClearColor(0.17f, 0.8f, 0.4f, 1.0f);

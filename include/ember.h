@@ -29,6 +29,24 @@ typedef struct EMBERWindow_t {
 } EMBERWindow;
 
 /**
+ * @brief Structure representing a specific time
+ *
+ * This structure holds the data associated with any given time.
+ * It contains necessary information from year, to month,
+ * to even milliseconds.
+ */
+typedef struct EMBERTime_t {
+    unsigned short year; /* Current year */
+    unsigned short month; /* Current month */
+    unsigned short dayOfWeek; /* Current day of week */
+    unsigned short day; /* Current day */
+    unsigned short hour; /* Current hour */
+    unsigned short minute; /* Current minute */
+    unsigned short second; /* Current second */
+    unsigned short milliseconds; /* Current millisecond */
+} EMBERTime;
+
+/**
  * @brief Function pointer type for key input callbacks.
  *
  * This type defines the signature for functions that will be called when
@@ -510,6 +528,23 @@ void emSetScrollCallback(EMBERWindow* window, emScrollCallback callback);
  * @sa emResizeCallback
  */
 void emSetResizeCallback(EMBERWindow* window, emResizeCallback callback);
+
+/**
+ * @brief Retrieves the current local time.
+ *
+ * @return Returns an EMBERTime struct containing all the current time data.
+ */
+EMBERTime emGetFormattedTime();
+
+/**
+ * @brief Sets the interval between frame swaps.
+ *
+ * This function sets the amount of frames required to pass before
+ * the buffers are swapped by emSwapBuffers().
+ *
+ * @param interval The given amount of frames
+ */
+void emSetSwapInterval(int interval);
 
 #ifdef __cplusplus
 }

@@ -45,6 +45,7 @@ bits 32
 %define VK_RWIN 92
 
 %define CLASS_SIZE 48
+%define SYSTEMTIME_SIZE 16
 
 %define EMBER_SUCCESS 1
 %define EMBER_FAIL 0
@@ -75,6 +76,7 @@ opengl32 DB "opengl32.dll", 0
 globalMajorVersion DD 1
 globalMinorVersion DD 0
 globalProfileMask DD WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB
+wglSwapIntervalEXT DB "wglSwapIntervalEXT", 0
 
 section .bss
 hInstance RESB 4
@@ -124,6 +126,9 @@ extern _wglGetProcAddress@4
 extern _GetProcAddress@8
 extern _LoadLibraryA@4
 extern _GetAsyncKeyState@4
+extern _GetLocalTime@4
+extern _QueryPerformanceCounter@8
+extern _QueryPerformanceFrequency@8
 
 extern _malloc
 extern _free
@@ -146,10 +151,15 @@ global _emSetCursorLocationCallback
 global _emSetMouseButtonCallback
 global _emSetScrollCallback
 global _emSetResizeCallback
+global _emGetFormattedTime
+global _emSetSwapInterval
 
 _emInit:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     PUSH NULL
     CALL _GetModuleHandleA@4
@@ -195,6 +205,9 @@ _emInit:
 
     MOV EAX, EMBER_FAIL
 .init_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -202,11 +215,17 @@ _emInit:
 _emTerminate:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     PUSH DWORD [hInstance]
     PUSH ClassName
     CALL _UnregisterClassA@8
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -214,6 +233,9 @@ _emTerminate:
 _emWindowHint:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV ECX, [EBP + 8]
     MOV EDX, [EBP + 12]
@@ -234,6 +256,9 @@ _emWindowHint:
 .set_profile:
     MOV [globalProfileMask], EDX
 .hint_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -241,6 +266,9 @@ _emWindowHint:
 _emCreateWindow:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
     
     PUSH EMBER_WINDOW_SIZE
     CALL _malloc
@@ -423,6 +451,9 @@ _emCreateWindow:
 
     XOR EAX, EAX
 .create_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -430,6 +461,9 @@ _emCreateWindow:
 _emDestroyWindow:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
 
@@ -447,6 +481,9 @@ _emDestroyWindow:
     CALL _free
     ADD ESP, 4
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -454,6 +491,9 @@ _emDestroyWindow:
 _emShouldClose:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     CMP DWORD [EBX + EMBERWindow.quit], EMBER_SHOULD_QUIT
@@ -465,6 +505,9 @@ _emShouldClose:
 .quit:
     MOV EAX, EMBER_SHOULD_QUIT
 .close_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -472,12 +515,18 @@ _emShouldClose:
 _emSetShouldClose:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EAX, [EBP + 8]
     ADD EAX, EMBERWindow.quit
 
     MOV DWORD [EAX], EMBER_SHOULD_QUIT
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -485,6 +534,9 @@ _emSetShouldClose:
 _emPollEvents:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     SUB ESP, 28
     MOV EBX, ESP
@@ -510,6 +562,9 @@ _emPollEvents:
     PUSH 5
     CALL _Sleep@4
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -517,6 +572,9 @@ _emPollEvents:
 _emMakeContext:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
 
@@ -533,6 +591,9 @@ _emMakeContext:
 .context_fail:
     MOV EAX, EMBER_FAIL
 .context_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -540,12 +601,18 @@ _emMakeContext:
 _emSwapBuffers:
     PUSH EBP
     MOV  EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     
     PUSH DWORD [EBX + EMBERWindow.hdc]
     CALL _SwapBuffers@4
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -553,6 +620,9 @@ _emSwapBuffers:
 _emGetProc:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
     
     PUSH DWORD [EBP + 8]
     CALL _wglGetProcAddress@4
@@ -572,6 +642,9 @@ _emGetProc:
 .proc_fail:
     XOR EAX, EAX
 .proc_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -579,6 +652,9 @@ _emGetProc:
 _emGetKey:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
@@ -597,6 +673,9 @@ _emGetKey:
 .key_not_pressed:
     XOR EAX, EAX
 .get_key_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -604,12 +683,18 @@ _emGetKey:
 _emSetKeyCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.key_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -617,12 +702,18 @@ _emSetKeyCallback:
 _emSetCursorPosCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.cursor_pos_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -630,12 +721,18 @@ _emSetCursorPosCallback:
 _emSetCursorLocationCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.cursor_location_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -643,12 +740,18 @@ _emSetCursorLocationCallback:
 _emSetMouseButtonCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.mouse_button_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -656,12 +759,18 @@ _emSetMouseButtonCallback:
 _emSetScrollCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.scroll_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -669,12 +778,18 @@ _emSetScrollCallback:
 _emSetResizeCallback:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     MOV EBX, [EBP + 8]
     MOV ECX, [EBP + 12]
 
     MOV [EBX + EMBERWindow.resize_callback], ECX
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -682,6 +797,9 @@ _emSetResizeCallback:
 _CheckModifiers:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     XOR ESI, ESI
 
@@ -717,6 +835,9 @@ _CheckModifiers:
 .check_modifiers_end:
     MOV EAX, ESI
 
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
@@ -724,6 +845,9 @@ _CheckModifiers:
 _WndProc:
     PUSH EBP
     MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
 
     PUSH GWLP_USERDATA
     PUSH DWORD [EBP + 8]
@@ -1015,6 +1139,80 @@ _WndProc:
     XOR EAX, EAX
     JMP .wndproc_end
 .wndproc_end:
+    POP ESI
+    POP EDI
+    POP EBX
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emGetFormattedTime:
+    PUSH EBP
+    MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
+
+    SUB ESP, SYSTEMTIME_SIZE
+    PUSH ESP
+    CALL _GetLocalTime@4
+
+    PUSH 16
+    CALL _malloc
+    ADD ESP, 4
+    MOV ESI, EAX
+
+    MOV AX, WORD [ESP + 0]  ; year
+    MOV [ESI + 0], AX
+    MOV AX, WORD [ESP + 2]  ; month
+    MOV [ESI + 2], AX
+    MOV AX, WORD [ESP + 4]  ; dayOfWeek
+    MOV [ESI + 4], AX
+    MOV AX, WORD [ESP + 6]  ; day
+    MOV [ESI + 6], AX
+    MOV AX, WORD [ESP + 8]  ; hour
+    MOV [ESI + 8], AX
+    MOV AX, WORD [ESP + 10] ; minute
+    MOV [ESI + 10], AX
+    MOV AX, WORD [ESP + 12] ; second
+    MOV [ESI + 12], AX
+    MOV AX, WORD [ESP + 14] ; milliseconds
+    MOV [ESI + 14], AX
+
+    ADD ESP, SYSTEMTIME_SIZE
+
+    MOV EAX, ESI
+
+    POP ESI
+    POP EDI
+    POP EBX
+    MOV ESP, EBP
+    POP EBP
+    RET
+
+_emSetSwapInterval:
+    PUSH EBP
+    MOV EBP, ESP
+    PUSH EBX
+    PUSH EDI
+    PUSH ESI
+    
+    MOV EBX, [EBP + 8]
+    
+    PUSH wglSwapIntervalEXT
+    CALL _wglGetProcAddress@4
+    ADD ESP, 4
+    
+    TEST EAX, EAX
+    JZ .swap_end
+    
+    PUSH EBX
+    CALL EAX
+    ADD ESP, 4
+.swap_end:
+    POP ESI
+    POP EDI
+    POP EBX
     MOV ESP, EBP
     POP EBP
     RET
